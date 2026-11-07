@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexusAI Studio - Instant AI Website Builder</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons for rich modern UI -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            studio: {
+              950: '#080c16',
+              900: '#0f172a',
+              850: '#151f32',
+              800: '#1e293b',
+              700: '#334155',
+              600: '#475569',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* Canvas Block Selection & Hover States */
+    .canvas-block {
+      position: relative;
+      transition: outline 0.15s ease, box-shadow 0.15s ease;
+      outline: 2px solid transparent;
+      outline-offset: 2px;
+    }
+    .canvas-block:hover:not(.preview-active) {
+      outline: 2px dashed #6366f1;
+    }
+    .canvas-block.selected:not(.preview-active) {
+      outline: 2px solid #6366f1 !important;
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.25);
+    }
+    .canvas-block.drag-over-top {
+      border-top: 3px solid #6366f1 !important;
+    }
+    .canvas-block.drag-over-bottom {
+      border-bottom: 3px solid #6366f1 !important;
+    }
+
+    /* Floating action toolbar on selected block */
+    .block-toolbar {
+      display: none;
+      position: absolute;
+      top: -38px;
+      right: 12px;
+      z-index: 40;
+    }
+    .canvas-block.selected:not(.preview-active) > .block-toolbar {
+      display: flex;
+    }
+
+    /* Preview Transitions */
+    #canvas-container {
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Editable focus styling */
+    [contenteditable="true"]:focus {
+      outline: 2px dashed #6366f1;
+      outline-offset: 3px;
+      background: rgba(99, 102, 241, 0.08);
+      border-radius: 4px;
+    }
+
+    /* Shimmer animation for AI loading */
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.8; filter: drop-shadow(0 0 15px rgba(99, 102, 241, 0.4)); }
+      50% { opacity: 1; filter: drop-shadow(0 0 30px rgba(139, 92, 246, 0.7)); }
+    }
+    .ai-glow {
+      animation: pulseGlow 2.5s infinite;
+    }
+  </style>
+</head>
+<body class="bg-studio-950 text-slate-100 flex flex-col h-screen overflow-hidden font-sans select-none">
+
+  <!-- TOP NAVIGATION BAR -->
+  <header class="h-14 bg-studio-900 border-b border-studio-800 px-4 flex items-center justify-between shrink-0 z-50">
+    <!-- Left: Branding & Project Title -->
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-brand-600 via-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-lg shadow-brand-500/25">
+        <i class="ph-bold ph-sparkle text-lg"></i>
+      </div>
+      <div class="flex items-center space-x-2">
+        <input id="project-title" type="text" value="My AI Website" 
+          class="bg-transparent text-sm font-semibold text-slate-100 border border-transparent hover:border-studio-700 focus:border-brand-500 rounded px-2 py-0.5 outline-none transition w-36 sm:w-48 text-ellipsis">
+        <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium hidden md:inline-flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Ready
+        </span>
+      </div>
+    </div>
+
+    <!-- Center: Viewport & Undo/Redo Controls -->
+    <div class="flex items-center space-x-1 sm:space-x-3">
+      <!-- Undo / Redo -->
+      <div class="flex items-center bg-studio-850 p-0.5 rounded-lg border border-studio-700/60">
+        <button id="btn-undo" title="Undo (Ctrl+Z)" class="p-1.5 text-slate-400 hover:text-white hover:bg-studio-700/60 rounded transition disabled:opacity-30 disabled:hover:bg-transparent">
+          <i class="ph-bold ph-arrow-u-up-left text-base"></i>
+        </button>
+        <button id="btn-redo" title="Redo (Ctrl+Y)" class="p-1.5 text-slate-400 hover:text-white hover:bg-studio-700/60 rounded transition disabled:opacity-30 disabled:hover:bg-transparent">
+          <i class="ph-bold ph-arrow-u-up-right text-base"></i>
+        </button>
+      </div>
+
+      <!-- Device Viewports -->
+      <div id="device-selector" class="flex items-center bg-studio-850 p-0.5 rounded-lg border border-studio-700/60">
+        <button data-device="desktop" class="device-btn active px-2.5 py-1.5 rounded text-xs font-medium flex items-center space-x-1.5 bg-brand-600 text-white transition">
+          <i class="ph ph-desktop text-base"></i>
+          <span class="hidden md:inline">Desktop</span>
+        </button>
+        <button data-device="tablet" class="device-btn px-2.5 py-1.5 rounded text-xs font-medium flex items-center space-x-1.5 text-slate-400 hover:text-white transition">
+          <i class="ph ph-device-tablet text-base"></i>
+          <span class="hidden md:inline">Tablet</span>
+        </button>
+        <button data-device="mobile" class="device-btn px-2.5 py-1.5 rounded text-xs font-medium flex items-center space-x-1.5 text-slate-400 hover:text-white transition">
+          <i class="ph ph-device-mobile text-base"></i>
+          <span class="hidden md:inline">Mobile</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Right: AI Trigger, Preview, Clear, and Export Actions -->
+    <div class="flex items-center space-x-2">
+      <!-- AI Prompt Generator Button -->
+      <button id="btn-open-ai" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-md shadow-indigo-500/25 transition">
+        <i class="ph-bold ph-magic-wand text-base"></i>
+        <span>AI Generate</span>
+      </button>
+
+      <!-- Clear Canvas -->
+      <button id="btn-clear" title="Clear Canvas" class="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition border border-transparent hover:border-rose-500/20">
+        <i class="ph-bold ph-trash text-base"></i>
+      </button>
+
+      <!-- Preview Mode -->
+      <button id="btn-preview-mode" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-studio-850 border border-studio-700 hover:bg-studio-800 text-slate-200 transition">
+        <i class="ph-bold ph-eye text-base"></i>
+        <span id="preview-text">Preview</span>
+      </button>
+
+      <!-- Export Code -->
+      <button id="btn-export" class="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20 transition">
+        <i class="ph-bold ph-download-simple text-base"></i>
+        <span>Export</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN STUDIO WORKSPACE -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- LEFT SIDEBAR: COMPONENTS PALETTE -->
+    <aside id="sidebar-left" class="w-64 bg-studio-900 border-r border-studio-800 flex flex-col shrink-0 transition-all duration-300 z-30">
+      <div class="p-3.5 border-b border-studio-800 flex items-center justify-between">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          <i class="ph-bold ph-squares-four text-brand-400"></i> Components
+        </span>
+        <span class="text-[10px] text-slate-500">Drag or Click</span>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-3 space-y-2">
+        <!-- Navbar -->
+        <div draggable="true" data-type="navbar" class="palette-item group p-2.5 bg-studio-850 hover:bg-studio-800 hover:border-brand-500/60 border border-studio-800 rounded-xl cursor-grab active:cursor-grabbing transition flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-400 flex items-center justify-center group-hover:scale-105 transition">
+            <i class="ph-bold ph-navigation-arrow text-base"></i>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-slate-200">Navbar Header</div>
+            <div class="text-[10px] text-slate-400">Branding & Links</div>
+          </div>
+        </div>
+
+        <!-- Hero Section -->
+        <div draggable="true" data-type="hero" class="palette-item group p-2.5 bg-studio-850 hover:bg-studio-800 hover:border-brand-500/60 border border-studio-800 rounded-xl cursor-grab active:cursor-grabbing transition flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center group-hover:scale-105 transition">
+            <i class="ph-bold ph-presentation text-base"></i>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-slate-200">Hero Section</div>
+            <div class="text-[10px] text-slate-400">Headline & CTA Button</div>
+          </div>
+        </div>
+
+        <!-- Features Grid -->
+        <div draggable="true" data-type="features" class="palette-item group p-2.5 bg-studio-850 hover:bg-studio-800 hover:border-brand-500/60 border border-studio-800 rounded-xl cursor-grab active:cursor-grabbing transition flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center group-hover:scale-105 transition">
+            <i class="ph-bold ph-grid-four text-base"></i>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-slate-200">Features Grid</div>
+            <div class="text-[10px] text-slate-400">3-column highlights</div>
+          </div>
+        </div>
+
+        <!-- Testimonial -->
+        <div draggable="true" data-type="testimonial" class="palette-item group p-2.5 bg-studio-850 hover:bg-studio-800 hover:border-brand-500/60 border border-studio-800 rounded-xl cursor-grab active:cursor-grabbing transition flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-pink-500/10 text-pink-400 flex items-center justify-center group-hover:scale-105 transition">
+            <i class="ph-bold ph-quotes text-base"></i>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-slate-200">Testimonial</div>
+            <div class="text-[10px] text-slate-400">Review quote & avatar</div>
+          </div>
+        </div>
+
+        <!-- Pricing Cards -->
+        <div draggable="true" data-type="pricing" class="palette-item group p-2.5 bg-studio-850 hover:bg-studio-800 hover:border-brand-500/60 border border-studio-800 rounded-xl cursor-grab active:cursor-grabbing transition flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center group-hover:scale-105 transition">
+            <i class="ph-bold ph-currency-dollar text-base"></i>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-slate-200">Pricing Tier</div>
+            <div class="text-[10px] text-slate-400">Feature tier box</div>
+          </div>
+        </div>
+
+        <!-- Text Block -->
+        <div draggable="true" data-type="text" class="palette-item group p-2.5 bg-studio-850 hover:bg-studio-800 hover:border-brand-500/60 border border-studio-800 rounded-xl cursor-grab active:cursor-grabbing transition flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center group-hover:scale-105 transition">
+            <i class="ph-bold ph-paragraph text-base"></i>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-slate-200">Text Block</div>
+            <div class="text-[10px] text-slate-400">Headline & description</div>
+          </div>
+        </div>
+
+        <!-- Image Media -->
+        <div draggable="true" data-type="image" class="palette-item group p-2.5 bg-studio-850 hover:bg-studio-800 hover:border-brand-500/60 border border-studio-800 rounded-xl cursor-grab active:cursor-grabbing transition flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center group-hover:scale-105 transition">
+            <i class="ph-bold ph-image text-base"></i>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-slate-200">Image Media</div>
+            <div class="text-[10px] text-slate-400">Unsplash photo frame</div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div draggable="true" data-type="footer" class="palette-item group p-2.5 bg-studio-850 hover:bg-studio-800 hover:border-brand-500/60 border border-studio-800 rounded-xl cursor-grab active:cursor-grabbing transition flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-slate-500/10 text-slate-400 flex items-center justify-center group-hover:scale-105 transition">
+            <i class="ph-bold ph-newspaper-clipping text-base"></i>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-slate-200">Footer</div>
+            <div class="text-[10px] text-slate-400">Copyright & social links</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CENTER CANVAS AREA -->
+    <main class="flex-1 bg-studio-950 overflow-y-auto p-4 md:p-8 flex flex-col items-center justify-start relative">
+      <!-- Quick AI Prompt Bar for fast generations -->
+      <div class="w-full max-w-[1100px] mb-4 bg-studio-900 border border-studio-800 rounded-2xl p-2.5 shadow-xl flex flex-col sm:flex-row items-center gap-2">
+        <div class="flex items-center pl-2 text-brand-400">
+          <i class="ph-bold ph-sparkle text-lg"></i>
+        </div>
+        <input id="quick-prompt-input" type="text" placeholder="Type prompt (e.g. 'Cyberpunk Coffee Shop', 'SaaS Analytics', 'Minimal Portfolio')..." 
+          class="flex-1 bg-transparent text-xs sm:text-sm text-slate-100 placeholder-slate-500 px-2 py-1 outline-none w-full">
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <button id="btn-quick-generate" class="w-full sm:w-auto px-4 py-1.5 rounded-xl text-xs font-semibold bg-brand-600 hover:bg-brand-500 text-white shadow-md transition flex items-center justify-center gap-1.5 shrink-0">
+            <i class="ph-bold ph-lightning"></i>
+            <span>Build</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Resizable Canvas Container -->
+      <div id="canvas-container" class="w-full max-w-[1100px] bg-slate-900 text-slate-100 rounded-2xl shadow-2xl min-h-[750px] relative transition-all duration-300 flex flex-col border border-studio-800 overflow-hidden">
+        
+        <!-- Live Editable Canvas Area -->
+        <div id="canvas" class="flex-1 flex flex-col space-y-0">
+          <!-- Components dynamically injected here -->
+        </div>
+
+        <!-- Empty Canvas Placeholder -->
+        <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center p-8 text-center pointer-events-none">
+          <div class="w-16 h-16 rounded-2xl bg-studio-850 flex items-center justify-center text-slate-400 mb-3 border border-studio-700">
+            <i class="ph-duotone ph-sparkle text-3xl text-brand-400"></i>
+          </div>
+          <h3 class="text-lg font-bold text-slate-200">Start with AI or Components</h3>
+          <p class="text-xs text-slate-400 max-w-sm mt-1">
+            Click <strong>AI Generate</strong> above or drag blocks from the left sidebar to build your webpage.
+          </p>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- RIGHT SIDEBAR: INSPECTOR & STYLE PANEL -->
+    <aside id="sidebar-right" class="w-72 bg-studio-900 border-l border-studio-800 flex flex-col shrink-0 z-30">
+      <div class="p-3.5 border-b border-studio-800 flex items-center justify-between">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          <i class="ph-bold ph-faders text-brand-400"></i> Inspector
+        </span>
+        <span id="selected-type-badge" class="text-[10px] px-2 py-0.5 rounded bg-brand-500/20 text-brand-400 font-medium">None</span>
+      </div>
+
+      <!-- Properties Controls (Populated dynamically) -->
+      <div id="inspector-content" class="flex-1 overflow-y-auto p-4 space-y-5">
+        <div class="text-center py-14 text-slate-500 text-xs">
+          <i class="ph-duotone ph-cursor-click text-3xl mb-2 text-slate-600 block"></i>
+          Click any block on the canvas to configure properties, colors, and layout.
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- AI GENERATOR MODAL -->
+  <div id="ai-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-studio-900 border border-studio-800 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col relative">
+      <!-- Gradient Header -->
+      <div class="p-5 border-b border-studio-800 flex items-center justify-between bg-gradient-to-r from-purple-900/40 via-studio-900 to-indigo-900/40">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-purple-500/30">
+            <i class="ph-bold ph-magic-wand text-lg"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-100 text-sm sm:text-base">AI Website Generator</h3>
+            <p class="text-[11px] text-slate-400">Describe your project, choose a style, and let AI build the site.</p>
+          </div>
+        </div>
+        <button id="btn-close-ai" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-studio-800 transition">
+          <i class="ph-bold ph-x text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+        <!-- Quick Prompts Chips -->
+        <div>
+          <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">Popular Presets</label>
+          <div class="flex flex-wrap gap-1.5">
+            <button class="preset-chip text-[11px] px-2.5 py-1 rounded-lg bg-studio-850 hover:bg-brand-600 hover:text-white border border-studio-700/80 text-slate-300 transition">
+              ☕ Dark Roast Coffee Lounge
+            </button>
+            <button class="preset-chip text-[11px] px-2.5 py-1 rounded-lg bg-studio-850 hover:bg-brand-600 hover:text-white border border-studio-700/80 text-slate-300 transition">
+              🚀 SaaS Cloud Platform
+            </button>
+            <button class="preset-chip text-[11px] px-2.5 py-1 rounded-lg bg-studio-850 hover:bg-brand-600 hover:text-white border border-studio-700/80 text-slate-300 transition">
+              🎨 Creative Designer Portfolio
+            </button>
+            <button class="preset-chip text-[11px] px-2.5 py-1 rounded-lg bg-studio-850 hover:bg-brand-600 hover:text-white border border-studio-700/80 text-slate-300 transition">
+              ⚡ Gym & Fitness Studio
+            </button>
+          </div>
+        </div>
+
+        <!-- Description Input -->
+        <div>
+          <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">Website Description & Purpose</label>
+          <textarea id="ai-prompt-input" rows="3" placeholder="e.g. Modern landing page for an organic matcha tea cafe with warm cozy tones, customer reviews, product catalog, and clear purchase links..." 
+            class="w-full bg-studio-950 border border-studio-700/80 rounded-xl p-3 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:border-brand-500 outline-none transition"></textarea>
+        </div>
+
+        <!-- Visual Theme Selector -->
+        <div class="grid grid-cols-3 gap-2.5">
+          <label class="theme-card cursor-pointer border border-studio-700 bg-studio-850 p-2.5 rounded-xl hover:border-brand-500 transition flex flex-col gap-1">
+            <input type="radio" name="ai-theme" value="modern-dark" checked class="hidden">
+            <span class="text-xs font-bold text-slate-200">Midnight Modern</span>
+            <span class="text-[10px] text-slate-400">Deep obsidian & indigo accents</span>
+          </label>
+          <label class="theme-card cursor-pointer border border-studio-700 bg-studio-850 p-2.5 rounded-xl hover:border-brand-500 transition flex flex-col gap-1">
+            <input type="radio" name="ai-theme" value="warm-editorial" class="hidden">
+            <span class="text-xs font-bold text-slate-200">Warm Amber</span>
+            <span class="text-[10px] text-slate-400">Coffee, gold, & earthy tones</span>
+          </label>
+          <label class="theme-card cursor-pointer border border-studio-700 bg-studio-850 p-2.5 rounded-xl hover:border-brand-500 transition flex flex-col gap-1">
+            <input type="radio" name="ai-theme" value="cyber-emerald" class="hidden">
+            <span class="text-xs font-bold text-slate-200">Emerald Glow</span>
+            <span class="text-[10px] text-slate-400">Clean neon greens & tech vibes</span>
+          </label>
+        </div>
+
+        <!-- Optional Gemini API Key -->
+        <div class="pt-2 border-t border-studio-800">
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-[11px] text-slate-400">Custom Google Gemini API Key (Optional)</label>
+            <span class="text-[10px] text-indigo-400 font-mono">Real-time LLM</span>
+          </div>
+          <input id="gemini-api-key" type="password" placeholder="AIzaSy... (leave blank to use instant intelligent generator)" 
+            class="w-full bg-studio-950 border border-studio-700/80 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-600 outline-none focus:border-brand-500">
+          <p class="text-[10px] text-slate-500 mt-1">If blank, our built-in intelligent engine creates instant styled templates.</p>
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="p-4 border-t border-studio-800 flex items-center justify-end space-x-3 bg-studio-900/60">
+        <button id="btn-cancel-ai" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-studio-800 transition">
+          Cancel
+        </button>
+        <button id="btn-run-ai" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-indigo-500/25 flex items-center gap-2 transition">
+          <i class="ph-bold ph-sparkle text-sm"></i>
+          <span>Generate Full Website</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPORT CODE MODAL (GITHUB READY) -->
+  <div id="export-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-studio-900 border border-studio-800 rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+      <!-- Header -->
+      <div class="p-4 border-b border-studio-800 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <i class="ph-bold ph-github-logo text-emerald-400 text-xl"></i>
+          <div>
+            <h3 class="font-bold text-slate-100 text-sm sm:text-base">GitHub Pages Ready Website</h3>
+            <p class="text-[11px] text-slate-400">Copy or download as <code class="text-emerald-400 font-mono">index.html</code></p>
+          </div>
+        </div>
+        <button id="btn-close-modal" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-studio-800 transition">
+          <i class="ph-bold ph-x text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Quick Step guide for GitHub -->
+      <div class="px-4 py-2.5 bg-studio-850 border-b border-studio-800 flex items-center text-[11px] text-slate-300 gap-3 overflow-x-auto">
+        <span class="font-bold text-emerald-400 shrink-0">How to publish:</span>
+        <span class="shrink-0">1. Click "Download index.html"</span>
+        <span class="text-slate-500">→</span>
+        <span class="shrink-0">2. Drag & drop into your GitHub repo root</span>
+        <span class="text-slate-500">→</span>
+        <span class="shrink-0">3. Go to Settings > Pages > Select "main branch"</span>
+      </div>
+
+      <!-- Code Box -->
+      <div class="p-4 flex-1 overflow-hidden flex flex-col bg-studio-950">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs text-slate-400 font-mono">index.html</span>
+          <span id="copy-status" class="text-xs text-emerald-400 opacity-0 transition">Copied to clipboard!</span>
+        </div>
+        <pre class="flex-1 overflow-auto bg-black/60 p-4 rounded-xl border border-studio-800 font-mono text-xs text-indigo-300 whitespace-pre"><code id="code-output"></code></pre>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="p-4 border-t border-studio-800 flex items-center justify-end space-x-3 bg-studio-900">
+        <button id="btn-copy-code" class="px-4 py-2 rounded-xl text-xs font-semibold bg-studio-800 hover:bg-studio-700 text-white border border-studio-700 transition flex items-center gap-1.5">
+          <i class="ph-bold ph-copy text-sm"></i> Copy Code
+        </button>
+        <button id="btn-download-html" class="px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 transition flex items-center gap-1.5">
+          <i class="ph-bold ph-download-simple text-sm"></i> Download index.html
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed bottom-6 right-6 bg-studio-850 text-slate-100 border border-studio-700 px-4 py-2.5 rounded-xl text-xs font-medium shadow-2xl flex items-center space-x-2 opacity-0 pointer-events-none transform translate-y-2 transition-all duration-200 z-50">
+    <i id="toast-icon" class="ph-bold ph-check text-brand-400 text-sm"></i>
+    <span id="toast-message">Notification</span>
+  </div>
+
+  <!-- APPLICATION ENGINE JAVASCRIPT -->
+  <script>
+    /* --- APPLICATION STATE --- */
+    const state = {
+      blocks: [],
+      selectedBlockId: null,
+      history: [],
+      historyIndex: -1,
+      previewMode: false,
+      currentDevice: 'desktop',
+      projectTitle: 'My AI Website',
+      apiKey: ''
+    };
+
+    /* --- DOM REFERENCES --- */
+    const canvas = document.getElementById('canvas');
+    const emptyState = document.getElementById('empty-state');
+    const inspectorContent = document.getElementById('inspector-content');
+    const selectedTypeBadge = document.getElementById('selected-type-badge');
+    const canvasContainer = document.getElementById('canvas-container');
+    const exportModal = document.getElementById('export-modal');
+    const aiModal = document.getElementById('ai-modal');
+    const codeOutput = document.getElementById('code-output');
+    const copyStatus = document.getElementById('copy-status');
+    const btnUndo = document.getElementById('btn-undo');
+    const btnRedo = document.getElementById('btn-redo');
+
+    /* --- COMPONENT TEMPLATE FACTORY --- */
+    function createBlockData(type, customContent = {}, customStyles = {}) {
+      const id = 'block-' + Math.random().toString(36).substring(2, 9);
+      
+      const defaults = {
+        id,
+        type,
+        styles: {
+          paddingTop: '48px',
+          paddingBottom: '48px',
+          paddingLeft: '24px',
+          paddingRight: '24px',
+          backgroundColor: '#0f172a',
+          textColor: '#f8fafc',
+          borderRadius: '0px',
+          textAlign: 'left',
+          ...customStyles
+        },
+        content: {}
+      };
+
+      switch(type) {
+        case 'navbar':
+          defaults.styles.paddingTop = '16px';
+          defaults.styles.paddingBottom = '16px';
+          defaults.styles.backgroundColor = '#0b1120';
+          defaults.content = {
+            logo: '☕ CoffeeCraft',
+            link1: 'Menu',
+            link2: 'About',
+            link3: 'Reviews',
+            ctaText: 'Visit Us',
+            ctaBg: '#6366f1',
+            ...customContent
+          };
+          break;
+
+        case 'hero':
+          defaults.styles.paddingTop = '80px';
+          defaults.styles.paddingBottom = '80px';
+          defaults.styles.textAlign = 'center';
+          defaults.styles.backgroundColor = '#0f172a';
+          defaults.content = {
+            badge: '✨ ARTISANAL BLENDS & SPECIALTY ROASTS',
+            title: 'Experience The Soul of Coffee',
+            subtitle: 'Hand-crafted single-origin coffee roasted fresh every morning in our downtown roastery.',
+            ctaPrimary: 'Order Online',
+            ctaSecondary: 'View Menu',
+            ctaBg: '#6366f1',
+            ...customContent
+          };
+          break;
+
+        case 'features':
+          defaults.styles.backgroundColor = '#131d33';
+          defaults.content = {
+            badge: 'WHY CHOOSE US',
+            heading: 'Crafted with Precision',
+            f1Title: 'Direct Trade Beans',
+            f1Desc: 'Sourced ethically from high-altitude farms across Ethiopia and Colombia.',
+            f2Title: 'Micro-Roasting',
+            f2Desc: 'Small batches monitored by certified master roasters for delicate notes.',
+            f3Title: 'Sustainable Craft',
+            f3Desc: '100% compostable packaging and zero-waste preparation philosophy.',
+            ...customContent
+          };
+          break;
+
+        case 'testimonial':
+          defaults.styles.backgroundColor = '#0b1120';
+          defaults.styles.textAlign = 'center';
+          defaults.content = {
+            quote: '"Hands down the smoothest cold brew and pour-over I have ever tasted in the city."',
+            author: 'Elena Vance',
+            role: 'Food & Beverage Critic',
+            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+            ...customContent
+          };
+          break;
+
+        case 'pricing':
+          defaults.styles.backgroundColor = '#0f172a';
+          defaults.content = {
+            badge: 'SUBSCRIPTION',
+            title: 'Monthly Tasting Box',
+            price: '$29',
+            period: '/month',
+            f1: 'Two 12oz bags of seasonal roast',
+            f2: 'Exclusive brew recipe guide',
+            f3: 'Free shipping anywhere in US',
+            buttonText: 'Subscribe Now',
+            buttonBg: '#6366f1',
+            ...customContent
+          };
+          break;
+
+        case 'image':
+          defaults.styles.backgroundColor = '#131d33';
+          defaults.styles.textAlign = 'center';
+          defaults.content = {
+            url: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=1100&q=80',
+            alt: 'Artisan Coffee Brew',
+            caption: 'Fresh morning pour-over in our roastery bar',
+            borderRadius: '16px',
+            ...customContent
+          };
+          break;
+
+        case 'text':
+          defaults.styles.backgroundColor = '#0f172a';
+          defaults.content = {
+            title: 'Our Brewing Philosophy',
+            body: 'We believe exceptional coffee is an art of patience and science. Every temperature degree and extraction ratio is tuned to express the natural notes of fruit, chocolate, and floral character.',
+            ...customContent
+          };
+          break;
+
+        case 'footer':
+          defaults.styles.paddingTop = '36px';
+          defaults.styles.paddingBottom = '36px';
+          defaults.styles.backgroundColor = '#080c16';
+          defaults.content = {
+            brand: 'CoffeeCraft Roasters',
+            copy: '© 2026 CoffeeCraft Inc. All rights reserved. Made with NexusAI.',
+            link1: 'Instagram',
+            link2: 'Twitter',
+            link3: 'Contact',
+            ...customContent
+          };
+          break;
+      }
+
+      return defaults;
+    }
+
+    /* --- HISTORY & UNDO/REDO --- */
+    function recordState() {
+      if (state.historyIndex < state.history.length - 1) {
+        state.history = state.history.slice(0, state.historyIndex + 1);
+      }
+      state.history.push(JSON.stringify(state.blocks));
+      state.historyIndex++;
+      updateHistoryButtons();
+    }
+
+    function updateHistoryButtons() {
+      btnUndo.disabled = state.historyIndex <= 0;
+      btnRedo.disabled = state.historyIndex >= state.history.length - 1;
+    }
+
+    function undo() {
+      if (state.historyIndex > 0) {
+        state.historyIndex--;
+        state.blocks = JSON.parse(state.history[state.historyIndex]);
+        renderCanvas();
+        updateInspector();
+        updateHistoryButtons();
+        showToast('Undo action');
+      }
+    }
+
+    function redo() {
+      if (state.historyIndex < state.history.length - 1) {
+        state.historyIndex++;
+        state.blocks = JSON.parse(state.history[state.historyIndex]);
+        renderCanvas();
+        updateInspector();
+        updateHistoryButtons();
+        showToast('Redo action');
+      }
+    }
+
+    /* --- TOAST MESSAGES --- */
+    let toastTimeout;
+    function showToast(message, icon = 'ph-check') {
+      const toast = document.getElementById('toast');
+      const toastMessage = document.getElementById('toast-message');
+      const toastIcon = document.getElementById('toast-icon');
+
+      toastMessage.innerText = message;
+      toastIcon.className = `ph-bold ${icon} text-brand-400 text-sm`;
+
+      toast.classList.remove('opacity-0', 'translate-y-2');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+      }, 2400);
+    }
+
+    /* --- RENDER CANVAS --- */
+    function renderCanvas() {
+      canvas.innerHTML = '';
+      
+      if (state.blocks.length === 0) {
+        emptyState.style.display = 'flex';
+      } else {
+        emptyState.style.display = 'none';
+      }
+
+      state.blocks.forEach((block, index) => {
+        const el = document.createElement('div');
+        el.className = `canvas-block group ${state.selectedBlockId === block.id ? 'selected' : ''} ${state.previewMode ? 'preview-active' : ''}`;
+        el.dataset.id = block.id;
+
+        // Apply styles
+        el.style.paddingTop = block.styles.paddingTop;
+        el.style.paddingBottom = block.styles.paddingBottom;
+        el.style.paddingLeft = block.styles.paddingLeft;
+        el.style.paddingRight = block.styles.paddingRight;
+        el.style.backgroundColor = block.styles.backgroundColor;
+        el.style.color = block.styles.textColor;
+        el.style.textAlign = block.styles.textAlign;
+
+        // Context Toolbar
+        if (!state.previewMode) {
+          const toolbar = document.createElement('div');
+          toolbar.className = 'block-toolbar bg-studio-900 border border-brand-500/80 rounded-xl shadow-2xl text-slate-200 text-xs px-2 py-1 flex items-center space-x-1.5 backdrop-blur-md';
+          toolbar.innerHTML = `
+            <span class="text-[10px] uppercase font-bold text-brand-400 px-1">${block.type}</span>
+            <button title="Move Up" class="p-1 hover:bg-studio-800 rounded text-slate-300 hover:text-white" onclick="moveBlock('${block.id}', -1, event)"><i class="ph-bold ph-caret-up"></i></button>
+            <button title="Move Down" class="p-1 hover:bg-studio-800 rounded text-slate-300 hover:text-white" onclick="moveBlock('${block.id}', 1, event)"><i class="ph-bold ph-caret-down"></i></button>
+            <button title="Duplicate" class="p-1 hover:bg-studio-800 rounded text-slate-300 hover:text-white" onclick="duplicateBlock('${block.id}', event)"><i class="ph-bold ph-copy"></i></button>
+            <button title="Delete" class="p-1 hover:bg-rose-500/20 rounded text-rose-400 hover:text-rose-300" onclick="deleteBlock('${block.id}', event)"><i class="ph-bold ph-trash"></i></button>
+          `;
+          el.appendChild(toolbar);
+        }
+
+        // Render block HTML
+        const inner = document.createElement('div');
+        inner.className = 'max-w-6xl mx-auto';
+        renderBlockContent(inner, block);
+        el.appendChild(inner);
+
+        // Click Selection
+        if (!state.previewMode) {
+          el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectBlock(block.id);
+          });
+        }
+
+        canvas.appendChild(el);
+      });
+    }
+
+    /* --- HTML CONTENT GENERATORS FOR BLOCKS --- */
+    function renderBlockContent(container, block) {
+      const isEdit = !state.previewMode;
+
+      switch(block.type) {
+        case 'navbar':
+          container.innerHTML = `
+            <div class="flex items-center justify-between">
+              <div class="font-extrabold text-lg tracking-tight" contenteditable="${isEdit}" data-field="logo">${block.content.logo}</div>
+              <div class="hidden md:flex items-center space-x-6 text-sm text-slate-300 font-medium">
+                <span contenteditable="${isEdit}" data-field="link1" class="cursor-pointer hover:text-white">${block.content.link1}</span>
+                <span contenteditable="${isEdit}" data-field="link2" class="cursor-pointer hover:text-white">${block.content.link2}</span>
+                <span contenteditable="${isEdit}" data-field="link3" class="cursor-pointer hover:text-white">${block.content.link3}</span>
+              </div>
+              <a href="#" class="px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md transition" style="background-color: ${block.content.ctaBg};">
+                <span contenteditable="${isEdit}" data-field="ctaText">${block.content.ctaText}</span>
+              </a>
+            </div>
+          `;
+          break;
+
+        case 'hero':
+          container.innerHTML = `
+            <div class="max-w-3xl mx-auto space-y-4 text-center">
+              ${block.content.badge ? `<div class="inline-block px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-brand-500/20 text-brand-400 border border-brand-500/30" contenteditable="${isEdit}" data-field="badge">${block.content.badge}</div>` : ''}
+              <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight" contenteditable="${isEdit}" data-field="title">${block.content.title}</h1>
+              <p class="text-sm sm:text-base text-slate-400 max-w-xl mx-auto leading-relaxed" contenteditable="${isEdit}" data-field="subtitle">${block.content.subtitle}</p>
+              <div class="pt-3 flex items-center justify-center gap-3">
+                <a href="#" class="px-6 py-3 rounded-xl text-xs sm:text-sm font-bold text-white shadow-lg transition" style="background-color: ${block.content.ctaBg};">
+                  <span contenteditable="${isEdit}" data-field="ctaPrimary">${block.content.ctaPrimary}</span>
+                </a>
+                <a href="#" class="px-6 py-3 rounded-xl text-xs sm:text-sm font-semibold bg-studio-800 hover:bg-studio-700 text-slate-200 border border-studio-700 transition">
+                  <span contenteditable="${isEdit}" data-field="ctaSecondary">${block.content.ctaSecondary}</span>
+                </a>
+              </div>
+            </div>
+          `;
+          break;
+
+        case 'features':
+          container.innerHTML = `
+            <div class="space-y-8">
+              <div class="text-center space-y-2">
+                <span class="text-xs font-bold uppercase tracking-widest text-brand-400" contenteditable="${isEdit}" data-field="badge">${block.content.badge}</span>
+                <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight" contenteditable="${isEdit}" data-field="heading">${block.content.heading}</h2>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="p-6 rounded-2xl bg-studio-850/60 border border-studio-750 space-y-2">
+                  <div class="w-10 h-10 rounded-xl bg-brand-500/10 text-brand-400 flex items-center justify-center text-xl font-bold">★</div>
+                  <h3 class="font-bold text-base text-slate-100" contenteditable="${isEdit}" data-field="f1Title">${block.content.f1Title}</h3>
+                  <p class="text-xs text-slate-400 leading-relaxed" contenteditable="${isEdit}" data-field="f1Desc">${block.content.f1Desc}</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-studio-850/60 border border-studio-750 space-y-2">
+                  <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-xl font-bold">⚡</div>
+                  <h3 class="font-bold text-base text-slate-100" contenteditable="${isEdit}" data-field="f2Title">${block.content.f2Title}</h3>
+                  <p class="text-xs text-slate-400 leading-relaxed" contenteditable="${isEdit}" data-field="f2Desc">${block.content.f2Desc}</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-studio-850/60 border border-studio-750 space-y-2">
+                  <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xl font-bold">☘</div>
+                  <h3 class="font-bold text-base text-slate-100" contenteditable="${isEdit}" data-field="f3Title">${block.content.f3Title}</h3>
+                  <p class="text-xs text-slate-400 leading-relaxed" contenteditable="${isEdit}" data-field="f3Desc">${block.content.f3Desc}</p>
+                </div>
+              </div>
+            </div>
+          `;
+          break;
+
+        case 'testimonial':
+          container.innerHTML = `
+            <div class="max-w-2xl mx-auto space-y-4 text-center">
+              <i class="ph-duotone ph-quotes text-4xl text-brand-400"></i>
+              <p class="text-base sm:text-lg italic text-slate-200 leading-relaxed font-light" contenteditable="${isEdit}" data-field="quote">${block.content.quote}</p>
+              <div class="pt-2 flex items-center justify-center space-x-3">
+                <img src="${block.content.avatar}" alt="Avatar" class="w-11 h-11 rounded-full object-cover border-2 border-brand-500/40">
+                <div class="text-left">
+                  <div class="font-bold text-xs sm:text-sm text-slate-100" contenteditable="${isEdit}" data-field="author">${block.content.author}</div>
+                  <div class="text-[11px] text-slate-400" contenteditable="${isEdit}" data-field="role">${block.content.role}</div>
+                </div>
+              </div>
+            </div>
+          `;
+          break;
+
+        case 'pricing':
+          container.innerHTML = `
+            <div class="max-w-md mx-auto p-8 rounded-3xl bg-studio-850/80 border border-studio-700 shadow-2xl space-y-6 text-center">
+              <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-brand-500/20 text-brand-400" contenteditable="${isEdit}" data-field="badge">${block.content.badge}</span>
+              <h3 class="text-xl font-extrabold text-slate-100" contenteditable="${isEdit}" data-field="title">${block.content.title}</h3>
+              <div class="flex items-baseline justify-center">
+                <span class="text-4xl sm:text-5xl font-extrabold text-slate-100" contenteditable="${isEdit}" data-field="price">${block.content.price}</span>
+                <span class="text-xs text-slate-400 ml-1" contenteditable="${isEdit}" data-field="period">${block.content.period}</span>
+              </div>
+              <ul class="text-xs text-slate-300 space-y-2.5 text-left border-y border-studio-700/60 py-4">
+                <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-400"></i> <span contenteditable="${isEdit}" data-field="f1">${block.content.f1}</span></li>
+                <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-400"></i> <span contenteditable="${isEdit}" data-field="f2">${block.content.f2}</span></li>
+                <li class="flex items-center gap-2"><i class="ph-bold ph-check text-emerald-400"></i> <span contenteditable="${isEdit}" data-field="f3">${block.content.f3}</span></li>
+              </ul>
+              <button class="w-full py-3 rounded-xl text-xs sm:text-sm font-bold text-white shadow-lg transition" style="background-color: ${block.content.buttonBg};">
+                <span contenteditable="${isEdit}" data-field="buttonText">${block.content.buttonText}</span>
+              </button>
+            </div>
+          `;
+          break;
+
+        case 'image':
+          container.innerHTML = `
+            <div class="space-y-2 text-center">
+              <img src="${block.content.url}" alt="${block.content.alt}" class="w-full h-auto max-h-[460px] object-cover shadow-2xl mx-auto" style="border-radius: ${block.content.borderRadius};">
+              ${block.content.caption ? `<p class="text-[11px] text-slate-400 italic pt-1" contenteditable="${isEdit}" data-field="caption">${block.content.caption}</p>` : ''}
+            </div>
+          `;
+          break;
+
+        case 'text':
+          container.innerHTML = `
+            <div class="max-w-2xl mx-auto space-y-3">
+              <h2 class="text-2xl font-bold tracking-tight text-slate-100" contenteditable="${isEdit}" data-field="title">${block.content.title}</h2>
+              <p class="text-sm text-slate-300 leading-relaxed" contenteditable="${isEdit}" data-field="body">${block.content.body}</p>
+            </div>
+          `;
+          break;
+
+        case 'footer':
+          container.innerHTML = `
+            <div class="flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-4">
+              <div class="font-bold text-slate-200" contenteditable="${isEdit}" data-field="brand">${block.content.brand}</div>
+              <div contenteditable="${isEdit}" data-field="copy">${block.content.copy}</div>
+              <div class="flex items-center space-x-4">
+                <span class="hover:text-white cursor-pointer" contenteditable="${isEdit}" data-field="link1">${block.content.link1}</span>
+                <span class="hover:text-white cursor-pointer" contenteditable="${isEdit}" data-field="link2">${block.content.link2}</span>
+                <span class="hover:text-white cursor-pointer" contenteditable="${isEdit}" data-field="link3">${block.content.link3}</span>
+              </div>
+            </div>
+          `;
+          break;
+      }
+
+      // Inline Contenteditable Blur Handlers
+      if (isEdit) {
+        container.querySelectorAll('[contenteditable="true"]').forEach(el => {
+          el.addEventListener('blur', () => {
+            const field = el.dataset.field;
+            if (field && block.content[field] !== el.innerText) {
+              block.content[field] = el.innerText;
+              recordState();
+            }
+          });
+        });
+      }
+    }
+
+    /* --- BLOCK MANIPULATION --- */
+    function addBlock(type) {
+      const block = createBlockData(type);
+      state.blocks.push(block);
+      selectBlock(block.id);
+      recordState();
+      renderCanvas();
+      showToast(`Added ${type} block`);
+      
+      setTimeout(() => {
+        const el = document.querySelector(`[data-id="${block.id}"]`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
+    }
+
+    function selectBlock(id) {
+      state.selectedBlockId = id;
+      document.querySelectorAll('.canvas-block').forEach(b => {
+        b.classList.toggle('selected', b.dataset.id === id);
+      });
+      updateInspector();
+    }
+
+    function moveBlock(id, direction, event) {
+      if (event) event.stopPropagation();
+      const idx = state.blocks.findIndex(b => b.id === id);
+      const target = idx + direction;
+      if (target >= 0 && target < state.blocks.length) {
+        const item = state.blocks.splice(idx, 1)[0];
+        state.blocks.splice(target, 0, item);
+        recordState();
+        renderCanvas();
+      }
+    }
+
+    function duplicateBlock(id, event) {
+      if (event) event.stopPropagation();
+      const idx = state.blocks.findIndex(b => b.id === id);
+      if (idx !== -1) {
+        const clone = JSON.parse(JSON.stringify(state.blocks[idx]));
+        clone.id = 'block-' + Math.random().toString(36).substring(2, 9);
+        state.blocks.splice(idx + 1, 0, clone);
+        selectBlock(clone.id);
+        recordState();
+        renderCanvas();
+        showToast('Block duplicated');
+      }
+    }
+
+    function deleteBlock(id, event) {
+      if (event) event.stopPropagation();
+      const idx = state.blocks.findIndex(b => b.id === id);
+      if (idx !== -1) {
+        state.blocks.splice(idx, 1);
+        state.selectedBlockId = state.blocks.length ? state.blocks[0].id : null;
+        recordState();
+        renderCanvas();
+        updateInspector();
+        showToast('Block removed', 'ph-trash');
+      }
+    }
+
+    /* --- INSPECTOR PANEL --- */
+    function updateInspector() {
+      const block = state.blocks.find(b => b.id === state.selectedBlockId);
+      if (!block) {
+        selectedTypeBadge.innerText = 'None';
+        inspectorContent.innerHTML = `
+          <div class="text-center py-14 text-slate-500 text-xs">
+            <i class="ph-duotone ph-cursor-click text-3xl mb-2 text-slate-600 block"></i>
+            Click any block on the canvas to configure properties and colors.
+          </div>
+        `;
+        return;
+      }
+
+      selectedTypeBadge.innerText = block.type.toUpperCase();
+
+      let html = `<div class="space-y-4">`;
+
+      // Colors & Spacing
+      html += `
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Block Background & Text</h4>
+          <div class="space-y-2.5 bg-studio-850 p-3 rounded-xl border border-studio-800">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-[10px] text-slate-400 block mb-1">Background</label>
+                <input type="color" data-prop="styles.backgroundColor" value="${block.styles.backgroundColor}" class="inspector-color w-full h-8 bg-studio-950 border border-studio-700 rounded-lg cursor-pointer">
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-400 block mb-1">Text Color</label>
+                <input type="color" data-prop="styles.textColor" value="${block.styles.textColor}" class="inspector-color w-full h-8 bg-studio-950 border border-studio-700 rounded-lg cursor-pointer">
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-[10px] text-slate-400 block mb-1">Padding Top</label>
+                <input type="text" data-prop="styles.paddingTop" value="${block.styles.paddingTop}" class="inspector-text w-full bg-studio-950 border border-studio-700 rounded-lg px-2 py-1 text-xs text-white">
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-400 block mb-1">Padding Bottom</label>
+                <input type="text" data-prop="styles.paddingBottom" value="${block.styles.paddingBottom}" class="inspector-text w-full bg-studio-950 border border-studio-700 rounded-lg px-2 py-1 text-xs text-white">
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Specific Media Fields
+      if (block.type === 'image') {
+        html += `
+          <div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Image Source</h4>
+            <div class="space-y-2.5 bg-studio-850 p-3 rounded-xl border border-studio-800">
+              <div>
+                <label class="text-[10px] text-slate-400 block mb-1">Image URL</label>
+                <input type="text" data-prop="content.url" value="${block.content.url}" class="inspector-text w-full bg-studio-950 border border-studio-700 rounded-lg px-2 py-1 text-xs text-white">
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      html += `</div>`;
+      inspectorContent.innerHTML = html;
+
+      // Bind events
+      inspectorContent.querySelectorAll('.inspector-color, .inspector-text').forEach(input => {
+        input.addEventListener('input', (e) => {
+          const path = e.target.dataset.prop;
+          const val = e.target.value;
+          const parts = path.split('.');
+          block[parts[0]][parts[1]] = val;
+          renderCanvas();
+        });
+        input.addEventListener('change', recordState);
+      });
+    }
+
+    /* --- AI GENERATION LOGIC --- */
+    const aiModalEl = document.getElementById('ai-modal');
+    const aiPromptInput = document.getElementById('ai-prompt-input');
+    const quickPromptInput = document.getElementById('quick-prompt-input');
+    const apiKeyInput = document.getElementById('gemini-api-key');
+
+    document.getElementById('btn-open-ai').addEventListener('click', () => {
+      aiModalEl.classList.remove('hidden');
+    });
+
+    document.getElementById('btn-close-ai').addEventListener('click', () => {
+      aiModalEl.classList.add('hidden');
+    });
+
+    document.getElementById('btn-cancel-ai').addEventListener('click', () => {
+      aiModalEl.classList.add('hidden');
+    });
+
+    // Preset chips click
+    document.querySelectorAll('.preset-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        aiPromptInput.value = chip.innerText.trim();
+      });
+    });
+
+    // Quick build from top input
+    document.getElementById('btn-quick-generate').addEventListener('click', () => {
+      const prompt = quickPromptInput.value.trim();
+      if (!prompt) {
+        showToast('Please type a prompt first', 'ph-warning');
+        return;
+      }
+      generateWebsiteWithAI(prompt, 'modern-dark');
+    });
+
+    quickPromptInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const prompt = quickPromptInput.value.trim();
+        if (prompt) generateWebsiteWithAI(prompt, 'modern-dark');
+      }
+    });
+
+    // Run AI from Modal
+    document.getElementById('btn-run-ai').addEventListener('click', async () => {
+      const prompt = aiPromptInput.value.trim() || 'Modern innovative venture';
+      const theme = document.querySelector('input[name="ai-theme"]:checked')?.value || 'modern-dark';
+      aiModalEl.classList.add('hidden');
+      await generateWebsiteWithAI(prompt, theme);
+    });
+
+    async function generateWebsiteWithAI(prompt, theme) {
+      showToast('NexusAI is assembling your website...', 'ph-sparkle');
+      
+      const customKey = apiKeyInput.value.trim();
+      if (customKey) {
+        state.apiKey = customKey;
+      }
+
+      // Check if Gemini API should be called
+      if (state.apiKey) {
+        try {
+          await callGeminiLLM(prompt, theme);
+          return;
+        } catch (err) {
+          console.warn('Fallback to intelligent template generator:', err);
+        }
+      }
+
+      // Built-in intelligent design generator
+      buildSynthesizedProject(prompt, theme);
+    }
+
+    function buildSynthesizedProject(prompt, theme) {
+      const lower = prompt.toLowerCase();
+      let accent = '#6366f1';
+      let bgDark = '#080c16';
+      let bgCard = '#111827';
+      let title = 'Modern Innovation';
+
+      if (theme === 'warm-editorial' || lower.includes('coffee') || lower.includes('bakery')) {
+        accent = '#d97706';
+        bgDark = '#1c1917';
+        bgCard = '#292524';
+        title = 'Amber & Hearth Co.';
+      } else if (theme === 'cyber-emerald' || lower.includes('tech') || lower.includes('crypto')) {
+        accent = '#10b981';
+        bgDark = '#061a14';
+        bgCard = '#0b2920';
+        title = 'Nexus Protocol';
+      } else if (lower.includes('fitness') || lower.includes('gym')) {
+        accent = '#f43f5e';
+        bgDark = '#0f172a';
+        bgCard = '#1e293b';
+        title = 'IronPulse Athletics';
+      }
+
+      state.projectTitle = prompt.length > 28 ? prompt.substring(0, 28) + '...' : prompt;
+      document.getElementById('project-title').value = state.projectTitle;
+
+      const blocks = [
+        createBlockData('navbar', {
+          logo: `✦ ${state.projectTitle.split(' ')[0]}`,
+          link1: 'Highlights',
+          link2: 'Services',
+          link3: 'Testimonials',
+          ctaText: 'Get Started',
+          ctaBg: accent
+        }, { backgroundColor: bgDark }),
+
+        createBlockData('hero', {
+          badge: '✨ POWERED BY CREATIVITY',
+          title: `Empowering Next-Gen ${prompt.split(' ')[0] || 'Experiences'}`,
+          subtitle: `Welcome to the premier destination for ${prompt.toLowerCase()}. Designed to deliver unmatched precision, quality, and community.`,
+          ctaPrimary: 'Explore Now',
+          ctaSecondary: 'Learn More',
+          ctaBg: accent
+        }, { backgroundColor: bgDark }),
+
+        createBlockData('features', {
+          badge: 'HIGHLIGHTS & EXCELLENCE',
+          heading: 'Engineered for Performance',
+          f1Title: 'Tailored Solutions',
+          f1Desc: 'Built from the ground up to address unique industry demands with elegance.',
+          f2Title: 'Ultra Fast Turnaround',
+          f2Desc: 'Instant workflows, zero overhead, and verified customer happiness.',
+          f3Title: '24/7 Dedicated Care',
+          f3Desc: 'Friendly real humans ready to assist your journey at any hour.'
+        }, { backgroundColor: bgCard }),
+
+        createBlockData('image', {
+          url: 'https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=1100&q=80',
+          alt: prompt,
+          caption: 'Crafted with obsessive attention to detail and craftsmanship.'
+        }, { backgroundColor: bgDark }),
+
+        createBlockData('pricing', {
+          badge: 'EXCLUSIVE PLAN',
+          title: 'Membership & Access',
+          price: '$39',
+          period: '/month',
+          f1: 'Unrestricted full access to all features',
+          f2: 'Personalized onboard orientation',
+          f3: 'VIP priority member perks',
+          buttonText: 'Claim Your Spot',
+          buttonBg: accent
+        }, { backgroundColor: bgCard }),
+
+        createBlockData('footer', {
+          brand: state.projectTitle,
+          copy: `© 2026 ${state.projectTitle}. Hosted with GitHub Pages.`
+        }, { backgroundColor: bgDark })
+      ];
+
+      state.blocks = blocks;
+      state.selectedBlockId = blocks[1].id;
+      recordState();
+      renderCanvas();
+      updateInspector();
+      showToast('Website Generated Successfully!', 'ph-check');
+    }
+
+    async function callGeminiLLM(prompt, theme) {
+      const systemPrompt = "You are an expert web designer. Return a JSON array containing block structures for: hero, features, testimonial, footer. Each block must have 'type' and 'content' fields.";
+      const userQuery = `Create a website layout JSON for: "${prompt}". Style: ${theme}. Output JSON schema only.`;
+      
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${state.apiKey}`;
+
+      const payload = {
+        contents: [{ parts: [{ text: userQuery }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        generationConfig: { responseMimeType: "application/json" }
+      };
+
+      const resp = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (rawText) {
+        const parsed = JSON.parse(rawText);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          state.blocks = parsed.map(p => createBlockData(p.type || 'text', p.content || {}));
+          recordState();
+          renderCanvas();
+          showToast('AI Generation Complete!');
+          return;
+        }
+      }
+      buildSynthesizedProject(prompt, theme);
+    }
+
+    /* --- SIDEBAR PALETTE CLICKS --- */
+    document.querySelectorAll('.palette-item').forEach(item => {
+      item.addEventListener('click', () => {
+        addBlock(item.dataset.type);
+      });
+    });
+
+    /* --- VIEWPORT BUTTONS --- */
+    document.querySelectorAll('.device-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.device-btn').forEach(b => {
+          b.classList.remove('active', 'bg-brand-600', 'text-white');
+          b.classList.add('text-slate-400');
+        });
+        btn.classList.add('active', 'bg-brand-600', 'text-white');
+        btn.classList.remove('text-slate-400');
+
+        const device = btn.dataset.device;
+        if (device === 'mobile') canvasContainer.style.maxWidth = '390px';
+        else if (device === 'tablet') canvasContainer.style.maxWidth = '768px';
+        else canvasContainer.style.maxWidth = '1100px';
+      });
+    });
+
+    /* --- PREVIEW MODE --- */
+    const btnPreviewMode = document.getElementById('btn-preview-mode');
+    const previewText = document.getElementById('preview-text');
+    const sidebarLeft = document.getElementById('sidebar-left');
+    const sidebarRight = document.getElementById('sidebar-right');
+
+    btnPreviewMode.addEventListener('click', () => {
+      state.previewMode = !state.previewMode;
+      if (state.previewMode) {
+        sidebarLeft.classList.add('-ml-64');
+        sidebarRight.classList.add('-mr-72');
+        btnPreviewMode.classList.replace('bg-studio-850', 'bg-emerald-600');
+        btnPreviewMode.classList.replace('text-slate-200', 'text-white');
+        previewText.innerText = 'Exit Preview';
+        showToast('Preview Mode Enabled', 'ph-eye');
+      } else {
+        sidebarLeft.classList.remove('-ml-64');
+        sidebarRight.classList.remove('-mr-72');
+        btnPreviewMode.classList.replace('bg-emerald-600', 'bg-studio-850');
+        btnPreviewMode.classList.replace('text-white', 'text-slate-200');
+        previewText.innerText = 'Preview';
+      }
+      renderCanvas();
+    });
+
+    /* --- CLEAR CANVAS --- */
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      if (!state.blocks.length) return;
+      state.blocks = [];
+      state.selectedBlockId = null;
+      recordState();
+      renderCanvas();
+      updateInspector();
+      showToast('Canvas cleared');
+    });
+
+    /* --- UNDO / REDO --- */
+    btnUndo.addEventListener('click', undo);
+    btnRedo.addEventListener('click', redo);
+
+    /* --- EXPORT GENERATOR --- */
+    document.getElementById('btn-export').addEventListener('click', () => {
+      const code = generateStandaloneExport();
+      codeOutput.textContent = code;
+      exportModal.classList.remove('hidden');
+    });
+
+    document.getElementById('btn-close-modal').addEventListener('click', () => {
+      exportModal.classList.add('hidden');
+    });
+
+    exportModal.addEventListener('click', (e) => {
+      if (e.target === exportModal) exportModal.classList.add('hidden');
+    });
+
+    document.getElementById('btn-copy-code').addEventListener('click', () => {
+      const code = codeOutput.textContent;
+      const dummy = document.createElement('textarea');
+      document.body.appendChild(dummy);
+      dummy.value = code;
+      dummy.select();
+      document.execCommand('copy');
+      document.body.removeChild(dummy);
+
+      copyStatus.style.opacity = '1';
+      setTimeout(() => { copyStatus.style.opacity = '0'; }, 2000);
+      showToast('Copied HTML for GitHub Pages!');
+    });
+
+    document.getElementById('btn-download-html').addEventListener('click', () => {
+      const code = codeOutput.textContent;
+      const blob = new Blob([code], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'index.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Downloaded index.html');
+    });
+
+    function generateStandaloneExport() {
+      let bodyHtml = '';
+
+      state.blocks.forEach(block => {
+        const styleStr = `padding-top: ${block.styles.paddingTop}; padding-bottom: ${block.styles.paddingBottom}; padding-left: ${block.styles.paddingLeft}; padding-right: ${block.styles.paddingRight}; background-color: ${block.styles.backgroundColor}; color: ${block.styles.textColor}; text-align: ${block.styles.textAlign};`;
+        
+        const tempContainer = document.createElement('div');
+        renderBlockContent(tempContainer, { ...block, previewMode: true });
+        
+        bodyHtml += `
+  <!-- ${block.type.toUpperCase()} SECTION -->
+  <section style="${styleStr}">
+    <div class="max-w-6xl mx-auto">
+      ${tempContainer.innerHTML.trim()}
+    </div>
+  </section>\n`;
+      });
+
+      return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${state.projectTitle}</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"><\/script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"><\/script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased min-h-screen flex flex-col">
+${bodyHtml}
+</body>
+</html>`;
+    }
+
+    /* --- INITIALIZE WITH DEFAULT TEMPLATE --- */
+    function init() {
+      buildSynthesizedProject('Dark Roast Artisanal Coffee Lounge', 'warm-editorial');
+    }
+
+    document.getElementById('project-title').addEventListener('input', (e) => {
+      state.projectTitle = e.target.value;
+    });
+
+    init();
+  </script>
+</body>
+</html>
