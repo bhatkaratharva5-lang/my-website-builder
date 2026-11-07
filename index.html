@@ -2,17 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AURA // Mobile Studio</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* Neon Glow Background Grid */
-    body {
+    /* Natural Smooth Mobile Scrolling */
+    html, body {
       background-color: #030305;
       color: #f4f4f5;
-      touch-action: pan-y;
-      -webkit-tap-highlight-color: transparent;
+      min-height: 100%;
+      overflow-x: hidden;
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch;
+      touch-action: auto !important;
     }
+    
     .cyber-grid {
       background-size: 28px 28px;
       background-image: 
@@ -20,68 +24,66 @@
         linear-gradient(to bottom, rgba(168, 85, 247, 0.05) 1px, transparent 1px);
     }
 
-    /* Ambient Animatic Glows */
-    @keyframes neon-float {
-      0%, 100% { transform: translateY(0px) scale(1); opacity: 0.25; }
-      50% { transform: translateY(-15px) scale(1.1); opacity: 0.55; }
+    /* Ambient Pulsing Glow */
+    @keyframes neon-pulse {
+      0%, 100% { transform: scale(1); opacity: 0.3; }
+      50% { transform: scale(1.12); opacity: 0.55; }
     }
-    .neon-orb-cyan {
-      animation: neon-float 6s ease-in-out infinite;
-      background: radial-gradient(circle, rgba(6, 182, 212, 0.3) 0%, rgba(0,0,0,0) 70%);
+    .neon-cyan {
+      animation: neon-pulse 6s ease-in-out infinite alternate;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.3) 0%, transparent 70%);
       filter: blur(40px);
     }
-    .neon-orb-purple {
-      animation: neon-float 8s ease-in-out infinite reverse;
-      background: radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, rgba(0,0,0,0) 70%);
+    .neon-purple {
+      animation: neon-pulse 8s ease-in-out infinite alternate-reverse;
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, transparent 70%);
       filter: blur(45px);
     }
 
-    /* Selection Borders */
+    /* Active Highlight */
     .canvas-block {
       position: relative;
-      transition: all 0.15s ease;
+      transition: outline 0.15s ease, box-shadow 0.15s ease;
     }
-    .canvas-block.active-block {
+    .canvas-block.is-active {
       outline: 2px solid #06b6d4 !important;
       box-shadow: inset 0 0 20px rgba(6, 182, 212, 0.25);
     }
-    [contenteditable="true"] {
-      outline: none;
-    }
+
+    [contenteditable="true"] { outline: none; }
     [contenteditable="true"]:focus {
       background: rgba(6, 182, 212, 0.15);
       border-radius: 4px;
     }
 
-    /* Hide scrollbar utility */
-    .no-scroll::-webkit-scrollbar { display: none; }
-    .no-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden font-sans select-none">
+<body class="font-sans">
 
   <!-- Ambient Dynamic Background -->
-  <div class="fixed inset-0 pointer-events-none z-0">
-    <div class="absolute -top-20 -left-20 w-64 h-64 neon-orb-cyan"></div>
-    <div class="absolute -bottom-20 -right-20 w-72 h-72 neon-orb-purple"></div>
+  <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+    <div class="absolute -top-20 -left-20 w-64 h-64 neon-cyan"></div>
+    <div class="absolute -bottom-20 -right-20 w-72 h-72 neon-purple"></div>
     <div class="absolute inset-0 cyber-grid"></div>
   </div>
 
-  <!-- Top Bar (Optimized for Mobile) -->
-  <header class="h-14 bg-black/90 border-b border-zinc-800/80 px-3 flex items-center justify-between z-30 shrink-0 backdrop-blur-md">
+  <!-- Sticky Top Header -->
+  <header class="sticky top-0 h-14 bg-black/95 border-b border-zinc-800/80 px-3 flex items-center justify-between z-40 backdrop-blur-md">
     
-    <!-- Left: Section Dropdown -->
+    <!-- Top-Left: Sections Dropdown Trigger -->
     <div class="flex items-center space-x-2">
-      <button onclick="toggleDrawer()" class="px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-cyan-500/40 text-cyan-400 font-bold text-xs flex items-center space-x-1.5 active:scale-95 transition">
+      <button onclick="toggleDrawer()" id="btn-drawer" class="px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-cyan-500/40 text-cyan-400 font-bold text-xs flex items-center space-x-1.5 active:scale-95 transition">
         <svg class="w-4 h-4 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
         <span>SECTIONS</span>
       </button>
-      <span class="text-xs font-black tracking-wider text-white hidden sm:inline">AURA<span class="text-cyan-400">.STUDIO</span></span>
+      <span class="text-xs font-black tracking-wider text-white hidden sm:inline">AURA<span class="text-cyan-400">.AI</span></span>
     </div>
 
     <!-- Right Controls -->
-    <div class="flex items-center space-x-1.5 overflow-x-auto no-scroll">
-      <button onclick="openModal('ai-modal')" class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-purple-600 flex items-center space-x-1 shrink-0 active:scale-95 transition">
+    <div class="flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
+      <button onclick="openModal('ai-modal')" class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-purple-600 flex items-center space-x-1 shrink-0 active:scale-95 transition shadow-[0_0_10px_rgba(6,182,212,0.4)]">
         <svg class="w-3.5 h-3.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
         <span>AI</span>
       </button>
@@ -90,7 +92,7 @@
         <span id="prev-text">Preview</span>
       </button>
 
-      <button onclick="openExportModal()" class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-black bg-emerald-400 shrink-0 active:scale-95 transition">
+      <button onclick="openExportModal()" class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-black bg-emerald-400 hover:bg-emerald-300 shrink-0 active:scale-95 transition">
         Export
       </button>
 
@@ -100,49 +102,49 @@
     </div>
   </header>
 
-  <!-- Section Dropdown Drawer -->
-  <div id="drawer" class="absolute top-14 left-2 right-2 sm:right-auto sm:w-72 bg-black/95 border border-cyan-500/40 rounded-xl shadow-2xl p-2.5 z-50 hidden flex flex-col space-y-1.5 backdrop-blur-xl">
+  <!-- Top-Left Section Injector Menu -->
+  <div id="drawer" class="fixed top-14 left-2 right-2 sm:right-auto sm:w-72 bg-black/95 border border-cyan-500/40 rounded-2xl shadow-2xl p-2.5 z-50 hidden flex flex-col space-y-1.5 backdrop-blur-xl">
     <div class="flex items-center justify-between pb-1.5 border-b border-zinc-800 text-cyan-400 font-bold text-xs uppercase">
-      <span>Insert Block</span>
+      <span>Insert Section</span>
       <button onclick="toggleDrawer()" class="text-zinc-500 hover:text-white px-1">✕</button>
     </div>
-    <div class="space-y-1 max-h-72 overflow-y-auto no-scroll text-xs">
-      <button onclick="addBlock('navbar')" class="w-full text-left p-2 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 flex justify-between items-center">
-        <span>Cyber Navbar</span><span class="text-cyan-400">+</span>
+    <div class="space-y-1 max-h-72 overflow-y-auto no-scrollbar text-xs">
+      <button onclick="addBlock('navbar')" class="w-full text-left p-2 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 flex justify-between items-center transition">
+        <span>Cyber Navbar</span><span class="text-cyan-400 font-bold">+</span>
       </button>
-      <button onclick="addBlock('hero')" class="w-full text-left p-2 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 flex justify-between items-center">
-        <span>Animatic Hero</span><span class="text-cyan-400">+</span>
+      <button onclick="addBlock('hero')" class="w-full text-left p-2 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 flex justify-between items-center transition">
+        <span>Animatic Hero</span><span class="text-cyan-400 font-bold">+</span>
       </button>
-      <button onclick="addBlock('features')" class="w-full text-left p-2 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 flex justify-between items-center">
-        <span>3x Feature Cards</span><span class="text-cyan-400">+</span>
+      <button onclick="addBlock('features')" class="w-full text-left p-2 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 flex justify-between items-center transition">
+        <span>3x Feature Cards</span><span class="text-cyan-400 font-bold">+</span>
       </button>
-      <button onclick="addBlock('music')" class="w-full text-left p-2 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 flex justify-between items-center">
-        <span>Neon Equalizer Bar</span><span class="text-cyan-400">+</span>
+      <button onclick="addBlock('music')" class="w-full text-left p-2 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 flex justify-between items-center transition">
+        <span>Equalizer Audio Bar</span><span class="text-cyan-400 font-bold">+</span>
       </button>
-      <button onclick="addBlock('pricing')" class="w-full text-left p-2 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 flex justify-between items-center">
-        <span>Pricing Card</span><span class="text-cyan-400">+</span>
+      <button onclick="addBlock('pricing')" class="w-full text-left p-2 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 flex justify-between items-center transition">
+        <span>VIP Pricing Card</span><span class="text-cyan-400 font-bold">+</span>
       </button>
-      <button onclick="addBlock('footer')" class="w-full text-left p-2 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 flex justify-between items-center">
-        <span>Dark Footer</span><span class="text-cyan-400">+</span>
+      <button onclick="addBlock('footer')" class="w-full text-left p-2 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 flex justify-between items-center transition">
+        <span>Terminal Footer</span><span class="text-cyan-400 font-bold">+</span>
       </button>
     </div>
   </div>
 
-  <!-- Main Canvas (Takes 100% Mobile Width) -->
-  <main class="flex-1 overflow-y-auto p-2 sm:p-4 relative z-10 w-full flex flex-col items-center">
-    <div id="canvas" class="w-full max-w-2xl bg-black border border-zinc-900 rounded-xl overflow-hidden min-h-[80vh] pb-24 shadow-2xl">
-      <!-- Blocks will render here -->
+  <!-- Main Canvas Flow (Swipes smoothly up & down) -->
+  <main class="relative z-10 w-full flex flex-col items-center px-2 py-4 pb-32">
+    <div id="canvas" class="w-full max-w-2xl bg-black border border-zinc-900 rounded-2xl shadow-2xl overflow-hidden min-h-[500px]">
+      <!-- Blocks render here -->
     </div>
   </main>
 
   <!-- Mobile Bottom Inspector Sheet -->
-  <div id="sheet" class="fixed inset-x-0 bottom-0 bg-black/95 border-t border-purple-500/40 rounded-t-2xl z-40 p-4 transition-transform duration-300 transform translate-y-full backdrop-blur-xl">
+  <div id="sheet" class="fixed inset-x-0 bottom-0 bg-black/95 border-t border-purple-500/40 rounded-t-2xl z-50 p-4 transition-transform duration-300 transform translate-y-full backdrop-blur-xl">
     <div class="flex items-center justify-between pb-2 mb-3 border-b border-zinc-800">
-      <span class="text-xs font-bold text-purple-400 uppercase tracking-wider">Block Settings</span>
+      <span class="text-xs font-bold text-purple-400 uppercase tracking-wider">Block Styling</span>
       <button onclick="toggleSheet()" class="text-zinc-400 hover:text-white p-1">✕</button>
     </div>
     <div id="sheet-controls" class="space-y-3 text-xs">
-      <p class="text-zinc-500 text-center py-2">Tap any block above to select it.</p>
+      <p class="text-zinc-500 text-center py-2">Tap any block above to customize.</p>
     </div>
   </div>
 
@@ -151,32 +153,32 @@
     <div class="bg-zinc-950 border border-purple-500/40 rounded-2xl w-full max-w-sm p-4 space-y-3 shadow-2xl">
       <div class="flex items-center justify-between pb-2 border-b border-zinc-800">
         <h3 class="text-xs font-bold text-white uppercase tracking-wider">AI Instant Generator</h3>
-        <button onclick="closeModal('ai-modal')" class="text-zinc-400">✕</button>
+        <button onclick="closeModal('ai-modal')" class="text-zinc-400 hover:text-white">✕</button>
       </div>
-      <textarea id="ai-input" rows="3" class="w-full bg-black border border-zinc-800 rounded-lg p-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-cyan-400" placeholder="Type prompt (e.g. Neon gamer portfolio with audio beats)..."></textarea>
+      <textarea id="ai-input" rows="3" class="w-full bg-black border border-zinc-800 rounded-xl p-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-cyan-400" placeholder="e.g. Neon gaming clan roster with beats player..."></textarea>
       <div class="flex justify-end space-x-2 pt-1">
-        <button onclick="closeModal('ai-modal')" class="px-3 py-1 text-xs text-zinc-400">Cancel</button>
-        <button onclick="generateSite()" class="px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-xs rounded-lg">Build</button>
+        <button onclick="closeModal('ai-modal')" class="px-3 py-1.5 text-xs text-zinc-400">Cancel</button>
+        <button onclick="generateSite()" class="px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-xs rounded-xl active:scale-95 transition">Build</button>
       </div>
     </div>
   </div>
 
-  <!-- Export Modal -->
+  <!-- Export HTML Modal -->
   <div id="export-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3">
-    <div class="bg-zinc-950 border border-cyan-500/40 rounded-2xl w-full max-w-sm p-4 space-y-3 flex flex-col max-h-[80vh]">
+    <div class="bg-zinc-950 border border-cyan-500/40 rounded-2xl w-full max-w-sm p-4 space-y-3 flex flex-col max-h-[85vh]">
       <div class="flex items-center justify-between pb-2 border-b border-zinc-800">
         <h3 class="text-xs font-bold text-white">Clean HTML Code</h3>
-        <button onclick="closeModal('export-modal')" class="text-zinc-400">✕</button>
+        <button onclick="closeModal('export-modal')" class="text-zinc-400 hover:text-white">✕</button>
       </div>
-      <textarea id="export-code" readonly class="w-full flex-1 bg-black font-mono text-[10px] text-cyan-300 p-2 rounded-lg border border-zinc-800 resize-none h-48 focus:outline-none"></textarea>
+      <textarea id="export-code" readonly class="w-full flex-1 bg-black font-mono text-[10px] text-cyan-300 p-2.5 rounded-xl border border-zinc-800 resize-none h-48 focus:outline-none"></textarea>
       <div class="flex justify-between items-center pt-2">
-        <button onclick="copyCode()" id="copy-btn" class="px-3 py-1.5 text-xs bg-zinc-900 text-white rounded border border-zinc-800">Copy</button>
-        <button onclick="downloadCode()" class="px-3.5 py-1.5 text-xs bg-cyan-400 text-black font-bold rounded">Download index.html</button>
+        <button onclick="copyCode()" id="copy-btn" class="px-3 py-1.5 text-xs bg-zinc-900 text-white rounded-lg border border-zinc-800">Copy</button>
+        <button onclick="downloadCode()" class="px-3.5 py-1.5 text-xs bg-cyan-400 text-black font-bold rounded-lg shadow-[0_0_10px_rgba(6,182,212,0.4)]">Download index.html</button>
       </div>
     </div>
   </div>
 
-  <!-- Logic Engine -->
+  <!-- Script Engine -->
   <script>
     let blocks = [];
     let selectedId = null;
@@ -189,8 +191,8 @@
         padding: 'py-3 px-4',
         html: `
           <div class="flex items-center justify-between">
-            <span class="text-sm font-black text-cyan-400 tracking-wider" contenteditable="true">⚡ AURA</span>
-            <a href="#" class="px-3 py-1 rounded bg-cyan-400 text-black font-bold text-[10px] uppercase" contenteditable="true">ACCESS</a>
+            <span class="text-sm font-black text-cyan-400 tracking-wider flex items-center space-x-1.5" contenteditable="true">⚡ AURA.CORP</span>
+            <a href="#" class="px-3 py-1.5 rounded-lg bg-cyan-400 text-black font-bold text-[10px] uppercase tracking-wider" contenteditable="true">ENTER</a>
           </div>
         `
       },
@@ -205,10 +207,10 @@
               SHATTER REALITY WITH DARK VIBRANCY.
             </h1>
             <p class="text-zinc-400 text-xs leading-relaxed max-w-sm mx-auto" contenteditable="true">
-              Built for high speed, zero lag, and instant mobile responsiveness.
+              Engineered for mobile touch, low latency, and instantaneous edge compilation.
             </p>
             <div class="pt-2">
-              <a href="#" class="inline-block px-5 py-2 rounded-xl bg-cyan-400 text-black font-bold text-xs uppercase" contenteditable="true">GET STARTED</a>
+              <a href="#" class="inline-block px-5 py-2.5 rounded-xl bg-cyan-400 text-black font-bold text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(6,182,212,0.5)]" contenteditable="true">INITIALIZE</a>
             </div>
           </div>
         `
@@ -219,13 +221,13 @@
         padding: 'py-8 px-4',
         html: `
           <div class="space-y-2">
-            <div class="p-3 rounded-xl bg-black border border-zinc-800">
-              <h3 class="text-xs font-bold text-cyan-400" contenteditable="true">⚡ Sub-Zero Latency</h3>
-              <p class="text-[11px] text-zinc-400 mt-1" contenteditable="true">Static code architecture renders in under 100 milliseconds.</p>
+            <div class="p-3.5 rounded-xl bg-black border border-zinc-800">
+              <h3 class="text-xs font-bold text-cyan-400" contenteditable="true">⚡ Zero Latency Output</h3>
+              <p class="text-[11px] text-zinc-400 mt-1" contenteditable="true">Pure HTML/CSS static rendering ensures 100/100 performance scores.</p>
             </div>
-            <div class="p-3 rounded-xl bg-black border border-zinc-800">
-              <h3 class="text-xs font-bold text-purple-400" contenteditable="true">🔒 Fully Private</h3>
-              <p class="text-[11px] text-zinc-400 mt-1" contenteditable="true">Direct client rendering without external analytics tracking.</p>
+            <div class="p-3.5 rounded-xl bg-black border border-zinc-800">
+              <h3 class="text-xs font-bold text-purple-400" contenteditable="true">🔒 Autonomous Design</h3>
+              <p class="text-[11px] text-zinc-400 mt-1" contenteditable="true">No tracking cookies, no server dependencies, completely sovereign.</p>
             </div>
           </div>
         `
@@ -237,7 +239,7 @@
         html: `
           <div class="p-4 rounded-xl bg-zinc-950 border border-cyan-500/30 flex items-center justify-between">
             <div>
-              <span class="text-[10px] text-cyan-400 font-mono">// AUDIO STREAM</span>
+              <span class="text-[10px] text-cyan-400 font-mono">// AUDIO PROTOCOL</span>
               <h4 class="text-xs font-black text-white" contenteditable="true">DRIFT PHONK BASS (180 BPM)</h4>
             </div>
             <div class="flex items-end space-x-1 h-6 bg-black px-2 py-1 rounded border border-zinc-800">
@@ -254,10 +256,10 @@
         bg: 'bg-black',
         padding: 'py-8 px-4',
         html: `
-          <div class="p-4 rounded-2xl bg-zinc-950 border border-purple-500/40 text-center">
-            <h3 class="text-xs font-bold text-purple-300 uppercase" contenteditable="true">ELITE PASS</h3>
+          <div class="p-5 rounded-2xl bg-zinc-950 border border-purple-500/40 text-center">
+            <h3 class="text-xs font-bold text-purple-300 uppercase tracking-widest" contenteditable="true">VIP PASS</h3>
             <div class="my-2"><span class="text-3xl font-black text-white">$0</span><span class="text-zinc-500 text-[10px]"> / LIFETIME</span></div>
-            <a href="#" class="block w-full py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-black font-bold text-xs uppercase" contenteditable="true">CLAIM ACCESS</a>
+            <a href="#" class="block w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-black font-bold text-xs uppercase tracking-wider" contenteditable="true">CLAIM ACCESS</a>
           </div>
         `
       },
@@ -278,17 +280,16 @@
       addBlock('hero');
       addBlock('features');
       addBlock('music');
+      addBlock('pricing');
       addBlock('footer');
     }
 
     function toggleDrawer() {
-      const d = document.getElementById('drawer');
-      d.classList.toggle('hidden');
+      document.getElementById('drawer').classList.toggle('hidden');
     }
 
     function toggleSheet() {
-      const s = document.getElementById('sheet');
-      s.classList.toggle('translate-y-full');
+      document.getElementById('sheet').classList.toggle('translate-y-full');
     }
 
     function addBlock(type) {
@@ -306,14 +307,14 @@
       container.innerHTML = '';
 
       if (blocks.length === 0) {
-        container.innerHTML = `<p class="text-center text-zinc-600 py-20 text-xs">Canvas empty. Tap SECTIONS to add blocks.</p>`;
+        container.innerHTML = `<p class="text-center text-zinc-600 py-20 text-xs">Canvas empty. Tap SECTIONS at the top left.</p>`;
         return;
       }
 
       blocks.forEach((b, i) => {
         const div = document.createElement('div');
         div.id = b.id;
-        div.className = `canvas-block ${b.bg} ${b.padding} ${selectedId === b.id && !isPreview ? 'active-block' : ''}`;
+        div.className = `canvas-block ${b.bg} ${b.padding} ${selectedId === b.id && !isPreview ? 'is-active' : ''}`;
         
         div.onclick = (e) => {
           if (isPreview) return;
@@ -324,10 +325,10 @@
         let bar = '';
         if (!isPreview) {
           bar = `
-            <div class="absolute top-2 right-2 flex space-x-1 bg-black/80 p-1 rounded border border-zinc-800 z-20">
-              <button onclick="move(${i}, -1, event)" class="px-1 text-zinc-400 hover:text-white text-[10px]">▲</button>
-              <button onclick="move(${i}, 1, event)" class="px-1 text-zinc-400 hover:text-white text-[10px]">▼</button>
-              <button onclick="remove(${i}, event)" class="px-1 text-rose-400 hover:text-rose-300 text-[10px]">✕</button>
+            <div class="absolute top-2 right-2 flex space-x-1 bg-black/80 p-1 rounded-lg border border-zinc-800 z-20">
+              <button onclick="move(${i}, -1, event)" class="px-1.5 py-0.5 text-zinc-400 hover:text-white text-[10px]">▲</button>
+              <button onclick="move(${i}, 1, event)" class="px-1.5 py-0.5 text-zinc-400 hover:text-white text-[10px]">▼</button>
+              <button onclick="remove(${i}, event)" class="px-1.5 py-0.5 text-rose-400 hover:text-rose-300 text-[10px]">✕</button>
             </div>
           `;
         }
@@ -349,25 +350,25 @@
       }
 
       sc.innerHTML = `
-        <div class="space-y-2">
+        <div class="space-y-2.5">
           <div>
             <label class="block text-zinc-400 text-[10px] font-bold uppercase mb-1">Color Palette</label>
-            <select onchange="updateStyle('${b.id}', 'bg', this.value)" class="w-full bg-black border border-zinc-800 rounded p-1.5 text-zinc-200 text-xs">
+            <select onchange="updateStyle('${b.id}', 'bg', this.value)" class="w-full bg-black border border-zinc-800 rounded-lg p-2 text-zinc-200 text-xs">
               <option value="bg-black" ${b.bg === 'bg-black' ? 'selected' : ''}>Pure OLED Black</option>
               <option value="bg-zinc-950" ${b.bg === 'bg-zinc-950' ? 'selected' : ''}>Cyber Slate</option>
-              <option value="bg-purple-950/40" ${b.bg.includes('purple-950') ? 'selected' : ''}>Neon Purple Tint</option>
+              <option value="bg-purple-950/40" ${b.bg.includes('purple-950') ? 'selected' : ''}>Neon Violet Tint</option>
               <option value="bg-cyan-950/40" ${b.bg.includes('cyan-950') ? 'selected' : ''}>Neon Cyan Tint</option>
             </select>
           </div>
           <div>
-            <label class="block text-zinc-400 text-[10px] font-bold uppercase mb-1">Spacing</label>
-            <select onchange="updateStyle('${b.id}', 'padding', this.value)" class="w-full bg-black border border-zinc-800 rounded p-1.5 text-zinc-200 text-xs">
+            <label class="block text-zinc-400 text-[10px] font-bold uppercase mb-1">Padding</label>
+            <select onchange="updateStyle('${b.id}', 'padding', this.value)" class="w-full bg-black border border-zinc-800 rounded-lg p-2 text-zinc-200 text-xs">
               <option value="py-4 px-4" ${b.padding.includes('py-4') ? 'selected' : ''}>Compact</option>
               <option value="py-8 px-4" ${b.padding.includes('py-8') ? 'selected' : ''}>Standard</option>
               <option value="py-14 px-4" ${b.padding.includes('py-14') ? 'selected' : ''}>Spacious</option>
             </select>
           </div>
-          <p class="text-cyan-400 text-[10px] pt-1">💡 You can tap headline text directly on canvas to edit it.</p>
+          <p class="text-cyan-400 text-[10px] pt-1">💡 Tap any headline or button on the canvas to edit text.</p>
         </div>
       `;
       render();
@@ -409,7 +410,7 @@
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
     function generateSite() {
-      const txt = document.getElementById('ai-input').value.trim() || 'Neon Space';
+      const txt = document.getElementById('ai-input').value.trim() || 'Neon Cyber Hub';
       blocks = [
         { id: 'b1', ...blockTemplates.navbar },
         {
@@ -422,7 +423,7 @@
                 ${txt.slice(0, 32).toUpperCase()}
               </h1>
               <p class="text-zinc-400 text-xs max-w-sm mx-auto" contenteditable="true">Engineered for dark aesthetic performance on mobile devices.</p>
-              <div class="pt-2"><a href="#" class="px-5 py-2 rounded-xl bg-cyan-400 text-black font-bold text-xs uppercase" contenteditable="true">EXPLORE</a></div>
+              <div class="pt-2"><a href="#" class="px-5 py-2.5 rounded-xl bg-cyan-400 text-black font-bold text-xs uppercase" contenteditable="true">EXPLORE</a></div>
             </div>
           `
         },
@@ -440,7 +441,7 @@
           const clone = el.cloneNode(true);
           const bar = clone.querySelector('.absolute');
           if (bar) bar.remove();
-          clone.classList.remove('active-block');
+          clone.classList.remove('is-active');
           b.html = clone.innerHTML;
         }
       });
@@ -450,7 +451,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AURA // LIVE</title>
+  <title>AURA // LIVE SITE</title>
   <script src="https://cdn.tailwindcss.com"><\/script>
 </head>
 <body class="bg-black text-zinc-100 font-sans antialiased">
