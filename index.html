@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AURA // AI Studio OS</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <style>
+    /* Custom Neon Scrollbars */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #000000; }
+    ::-webkit-scrollbar-thumb { background: #06b6d4; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a855f7; box-shadow: 0 0 10px #a855f7; }
+
+    /* Animated Cyber Neon Grid */
+    .cyber-grid {
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(6, 182, 212, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(168, 85, 247, 0.05) 1px, transparent 1px);
+    }
+
+    /* Ambient Pulsing Glow Animations */
+    @keyframes neon-pulse {
+      0%, 100% { opacity: 0.35; transform: scale(1); }
+      50% { opacity: 0.75; transform: scale(1.08); }
+    }
+    .neon-orb-cyan {
+      animation: neon-pulse 7s ease-in-out infinite alternate;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.28) 0%, rgba(0,0,0,0) 70%);
+      filter: blur(55px);
+    }
+    .neon-orb-purple {
+      animation: neon-pulse 9s ease-in-out infinite alternate-reverse;
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.28) 0%, rgba(0,0,0,0) 70%);
+      filter: blur(60px);
+    }
+
+    /* Glassmorphism & Neon Borders */
+    .glass-panel {
+      background: rgba(7, 7, 12, 0.78);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .neon-border-glow:hover {
+      border-color: rgba(6, 182, 212, 0.8) !important;
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.35), inset 0 0 10px rgba(6, 182, 212, 0.15);
+    }
+
+    /* Canvas Block States */
+    .canvas-block {
+      position: relative;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .canvas-block:hover {
+      outline: 2px dashed #06b6d4;
+      outline-offset: -2px;
+      box-shadow: inset 0 0 25px rgba(6, 182, 212, 0.08);
+    }
+    .canvas-block.selected {
+      outline: 2px solid #a855f7 !important;
+      outline-offset: -2px;
+      box-shadow: inset 0 0 35px rgba(168, 85, 247, 0.18), 0 0 25px rgba(168, 85, 247, 0.25) !important;
+    }
+    .block-toolbar {
+      display: none;
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      z-index: 50;
+    }
+    .canvas-block:hover .block-toolbar,
+    .canvas-block.selected .block-toolbar {
+      display: flex;
+    }
+
+    [contenteditable="true"]:focus {
+      outline: 2px solid #06b6d4 !important;
+      background: rgba(6, 182, 212, 0.08);
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body class="bg-black text-zinc-100 h-screen flex flex-col font-sans overflow-hidden select-none">
+
+  <!-- Ambient Animatic Background Orbs -->
+  <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+    <div class="absolute -top-32 -left-32 w-96 h-96 neon-orb-cyan"></div>
+    <div class="absolute -bottom-40 -right-40 w-[30rem] h-[30rem] neon-orb-purple"></div>
+    <div class="absolute inset-0 cyber-grid opacity-70"></div>
+  </div>
+
+  <!-- Top Header Navigation Bar -->
+  <header class="h-16 glass-panel border-b border-zinc-800/80 px-5 flex items-center justify-between z-30 shrink-0 relative">
+    
+    <!-- Top Left: Section Switcher & Branding -->
+    <div class="flex items-center space-x-3">
+      <!-- Section Drawer Trigger Button -->
+      <button onclick="toggleSectionMenu()" id="section-menu-btn" class="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-cyan-500/40 text-cyan-400 hover:text-white hover:border-cyan-400 hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] transition duration-200">
+        <i data-lucide="layout-grid" class="w-4 h-4 text-cyan-400"></i>
+        <span class="text-xs font-semibold tracking-wide uppercase">Sections</span>
+        <i data-lucide="chevron-down" id="section-chevron" class="w-3.5 h-3.5 transition-transform duration-200"></i>
+      </button>
+
+      <div class="h-5 w-[1px] bg-zinc-800 mx-1"></div>
+
+      <!-- Studio Badge -->
+      <div class="flex items-center space-x-2.5">
+        <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-cyan-500 via-fuchsia-500 to-violet-600 flex items-center justify-center shadow-[0_0_12px_rgba(168,85,247,0.6)]">
+          <i data-lucide="sparkles" class="w-4 h-4 text-black font-black"></i>
+        </div>
+        <span class="text-sm font-black tracking-wider text-white">AURA<span class="text-cyan-400 font-mono text-xs ml-1">.NEON</span></span>
+      </div>
+    </div>
+
+    <!-- Center Viewport Controls (Desktop / Tablet / Mobile) -->
+    <div class="flex items-center space-x-1 glass-panel px-1.5 py-1 rounded-xl border border-zinc-800">
+      <button onclick="setViewport('desktop')" id="btn-desktop" class="px-3 py-1 rounded-lg text-xs flex items-center space-x-1.5 bg-zinc-800 text-cyan-300 font-semibold shadow-[0_0_10px_rgba(6,182,212,0.25)] transition">
+        <i data-lucide="monitor" class="w-3.5 h-3.5"></i>
+        <span>Desktop</span>
+      </button>
+      <button onclick="setViewport('tablet')" id="btn-tablet" class="px-3 py-1 rounded-lg text-xs flex items-center space-x-1.5 text-zinc-400 hover:text-white transition">
+        <i data-lucide="tablet" class="w-3.5 h-3.5"></i>
+        <span>Tablet</span>
+      </button>
+      <button onclick="setViewport('mobile')" id="btn-mobile" class="px-3 py-1 rounded-lg text-xs flex items-center space-x-1.5 text-zinc-400 hover:text-white transition">
+        <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+        <span>Mobile</span>
+      </button>
+    </div>
+
+    <!-- Right Actions: AI Generator, Live Preview, Export -->
+    <div class="flex items-center space-x-2.5">
+      <button onclick="openAiModal()" class="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-500 hover:shadow-[0_0_20px_rgba(168,85,247,0.7)] flex items-center space-x-2 transition transform active:scale-95">
+        <i data-lucide="wand-2" class="w-3.5 h-3.5"></i>
+        <span>AI Builder</span>
+      </button>
+
+      <button onclick="togglePreview()" id="preview-btn" class="px-3 py-1.5 rounded-xl text-xs font-medium glass-panel border border-zinc-800 text-zinc-300 hover:text-cyan-300 hover:border-cyan-500/40 flex items-center space-x-1.5 transition">
+        <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+        <span id="preview-text">Preview</span>
+      </button>
+
+      <button onclick="exportCode()" class="px-3.5 py-1.5 rounded-xl text-xs font-bold text-black bg-emerald-400 hover:bg-emerald-300 hover:shadow-[0_0_15px_rgba(52,211,153,0.6)] flex items-center space-x-1.5 transition">
+        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+        <span>Export</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Top-Left Floating Sections Drawer Menu -->
+  <div id="section-drawer" class="absolute top-16 left-5 w-80 glass-panel rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.9)] border border-cyan-500/30 p-3 z-40 hidden flex flex-col space-y-2">
+    <div class="px-2 py-1.5 flex items-center justify-between border-b border-zinc-800/80">
+      <span class="text-[11px] font-bold text-cyan-400 uppercase tracking-widest flex items-center space-x-1.5">
+        <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+        <span>Inject Section</span>
+      </span>
+      <span class="text-[10px] text-zinc-500">Click to append</span>
+    </div>
+
+    <div class="space-y-1.5 max-h-96 overflow-y-auto pr-1">
+      <button onclick="insertSection('navbar')" class="w-full text-left p-2 rounded-xl bg-zinc-950/60 hover:bg-zinc-900 border border-zinc-800/80 hover:border-cyan-500/50 transition flex items-center space-x-3 group">
+        <div class="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center group-hover:shadow-[0_0_10px_rgba(6,182,212,0.4)]"><i data-lucide="menu" class="w-4 h-4"></i></div>
+        <div><p class="text-xs font-semibold text-zinc-200">Cyber Navbar</p><p class="text-[10px] text-zinc-500">Logo + Glow link pill</p></div>
+      </button>
+
+      <button onclick="insertSection('hero')" class="w-full text-left p-2 rounded-xl bg-zinc-950/60 hover:bg-zinc-900 border border-zinc-800/80 hover:border-purple-500/50 transition flex items-center space-x-3 group">
+        <div class="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center group-hover:shadow-[0_0_10px_rgba(168,85,247,0.4)]"><i data-lucide="sparkles" class="w-4 h-4"></i></div>
+        <div><p class="text-xs font-semibold text-zinc-200">Animatic Hero</p><p class="text-[10px] text-zinc-500">Gradient headline + CTA</p></div>
+      </button>
+
+      <button onclick="insertSection('features')" class="w-full text-left p-2 rounded-xl bg-zinc-950/60 hover:bg-zinc-900 border border-zinc-800/80 hover:border-cyan-500/50 transition flex items-center space-x-3 group">
+        <div class="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center group-hover:shadow-[0_0_10px_rgba(6,182,212,0.4)]"><i data-lucide="cpu" class="w-4 h-4"></i></div>
+        <div><p class="text-xs font-semibold text-zinc-200">3x Bento Cards</p><p class="text-[10px] text-zinc-500">Glassmorphic neon cards</p></div>
+      </button>
+
+      <button onclick="insertSection('pricing')" class="w-full text-left p-2 rounded-xl bg-zinc-950/60 hover:bg-zinc-900 border border-zinc-800/80 hover:border-pink-500/50 transition flex items-center space-x-3 group">
+        <div class="w-8 h-8 rounded-lg bg-pink-500/10 text-pink-400 flex items-center justify-center group-hover:shadow-[0_0_10px_rgba(236,72,153,0.4)]"><i data-lucide="zap" class="w-4 h-4"></i></div>
+        <div><p class="text-xs font-semibold text-zinc-200">Elite Pricing Matrix</p><p class="text-[10px] text-zinc-500">Free + VIP glow tier</p></div>
+      </button>
+
+      <button onclick="insertSection('showcase')" class="w-full text-left p-2 rounded-xl bg-zinc-950/60 hover:bg-zinc-900 border border-zinc-800/80 hover:border-emerald-500/50 transition flex items-center space-x-3 group">
+        <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center group-hover:shadow-[0_0_10px_rgba(52,211,153,0.4)]"><i data-lucide="disc" class="w-4 h-4"></i></div>
+        <div><p class="text-xs font-semibold text-zinc-200">Neon Audio/Video Bar</p><p class="text-[10px] text-zinc-500">Track equalizer visualizer</p></div>
+      </button>
+
+      <button onclick="insertSection('footer')" class="w-full text-left p-2 rounded-xl bg-zinc-950/60 hover:bg-zinc-900 border border-zinc-800/80 hover:border-zinc-500/50 transition flex items-center space-x-3 group">
+        <div class="w-8 h-8 rounded-lg bg-zinc-800 text-zinc-300 flex items-center justify-center"><i data-lucide="terminal" class="w-4 h-4"></i></div>
+        <div><p class="text-xs font-semibold text-zinc-200">Terminal Footer</p><p class="text-[10px] text-zinc-500">Deep black brand copyright</p></div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Canvas Workspace -->
+  <div class="flex flex-1 overflow-hidden relative z-10">
+    <main class="flex-1 flex flex-col items-center p-4 md:p-6 overflow-y-auto">
+      <div id="canvas-wrapper" class="w-full max-w-5xl glass-panel border border-zinc-800/90 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.8)] transition-all duration-300 min-h-[85vh] flex flex-col overflow-hidden relative">
+        <div id="canvas" class="flex-1 select-text">
+          <!-- Dynamic canvas blocks -->
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Inspector Panel -->
+    <aside id="inspector-sidebar" class="w-72 glass-panel border-l border-zinc-800/90 flex flex-col shrink-0">
+      <div class="p-4 border-b border-zinc-800/80 flex items-center justify-between">
+        <h2 class="text-xs font-bold text-zinc-300 uppercase tracking-widest flex items-center space-x-1.5">
+          <i data-lucide="sliders" class="w-3.5 h-3.5 text-cyan-400"></i>
+          <span>Inspector</span>
+        </h2>
+        <span id="selected-type-badge" class="text-[10px] bg-zinc-800 text-cyan-400 px-2 py-0.5 rounded-full border border-cyan-500/30">NONE</span>
+      </div>
+
+      <div id="inspector-content" class="p-4 space-y-4 text-xs overflow-y-auto flex-1">
+        <p class="text-zinc-500 text-center py-10 leading-relaxed">Select any block on the canvas to customize glow effects, padding, and neon themes.</p>
+      </div>
+
+      <div class="p-3 border-t border-zinc-800/80 bg-black/40">
+        <button onclick="clearCanvas()" class="w-full py-2 px-3 rounded-xl text-xs text-rose-400 hover:text-rose-300 bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900/40 transition flex items-center justify-center space-x-1.5">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          <span>Clear Canvas</span>
+        </button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- AI Generator Modal -->
+  <div id="ai-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-panel border border-purple-500/40 rounded-2xl w-full max-w-lg shadow-[0_0_50px_rgba(168,85,247,0.35)] overflow-hidden">
+      <div class="p-5 border-b border-zinc-800 flex items-center justify-between bg-gradient-to-r from-purple-950/40 to-black">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 border border-purple-500/40 flex items-center justify-center shadow-[0_0_12px_rgba(168,85,247,0.5)]">
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">AI Cyber Generator</h3>
+            <p class="text-[11px] text-zinc-400">Describe your project to construct neon layouts</p>
+          </div>
+        </div>
+        <button onclick="closeAiModal()" class="text-zinc-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-zinc-300 mb-1.5">Prompt</label>
+          <textarea id="ai-prompt" rows="3" class="w-full bg-black/80 border border-zinc-800 rounded-xl p-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-cyan-400 shadow-[inset_0_0_10px_rgba(0,0,0,0.8)]" placeholder="e.g., Ultra-dark Phonk producer portfolio with glowing track release countdown and VIP discord access..."></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-zinc-300 mb-1.5">Quick Presets</label>
+          <div class="flex flex-wrap gap-1.5">
+            <button onclick="setPromptPreset('Phonk & Drift Beats Music Producer with neon audio cards')" class="px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 text-cyan-300 text-[11px] rounded-lg border border-cyan-500/30 transition">🎧 Phonk Music Label</button>
+            <button onclick="setPromptPreset('Esports Pro Clan & Tournament Roster with headshot stats')" class="px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 text-purple-300 text-[11px] rounded-lg border border-purple-500/30 transition">⚡ Gaming Clan</button>
+            <button onclick="setPromptPreset('Futuristic AI Developer Portfolio with glowing terminal matrix')" class="px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 text-emerald-300 text-[11px] rounded-lg border border-emerald-500/30 transition">💻 Cyber Developer</button>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-black/60 border border-zinc-800/80">
+          <label class="block text-[11px] font-semibold text-zinc-400 mb-1">Optional: Google Gemini API Key</label>
+          <input type="password" id="gemini-key" placeholder="AIzaSy... (Leave empty to use built-in engine)" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-700 focus:outline-none focus:border-purple-500" />
+        </div>
+      </div>
+
+      <div class="p-4 border-t border-zinc-800 bg-black/60 flex items-center justify-end space-x-2">
+        <button onclick="closeAiModal()" class="px-3 py-1.5 text-xs text-zinc-400 hover:text-white">Cancel</button>
+        <button onclick="generateAiSite()" id="generate-btn" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-600 hover:shadow-[0_0_20px_rgba(6,182,212,0.6)] text-white font-bold text-xs rounded-xl flex items-center space-x-1.5 transition">
+          <i data-lucide="wand-2" class="w-3.5 h-3.5"></i>
+          <span>Generate Layout</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Code Modal -->
+  <div id="export-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-panel border border-cyan-500/40 rounded-2xl w-full max-w-2xl shadow-[0_0_50px_rgba(6,182,212,0.3)] flex flex-col max-h-[85vh]">
+      <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
+        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+          <i data-lucide="code" class="w-4 h-4 text-cyan-400"></i>
+          <span>Production Ready HTML</span>
+        </h3>
+        <button onclick="closeExportModal()" class="text-zinc-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="p-4 flex-1 overflow-hidden flex flex-col">
+        <textarea id="exported-html-box" readonly class="w-full flex-1 bg-black font-mono text-xs text-cyan-300 p-3 rounded-xl border border-zinc-800 resize-none focus:outline-none shadow-inner"></textarea>
+      </div>
+      <div class="p-4 border-t border-zinc-800 flex items-center justify-between bg-black/60">
+        <span class="text-xs text-zinc-500">Standalone index.html with Tailwind & animations included.</span>
+        <div class="flex space-x-2">
+          <button onclick="copyExportedCode()" id="copy-btn" class="px-3 py-1.5 text-xs bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg border border-zinc-700">Copy Code</button>
+          <button onclick="downloadHtmlFile()" class="px-3.5 py-1.5 text-xs bg-cyan-400 hover:bg-cyan-300 text-black font-bold rounded-lg shadow-[0_0_15px_rgba(6,182,212,0.5)]">Download index.html</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Engine Scripts -->
+  <script>
+    let blocks = [];
+    let selectedBlockId = null;
+    let isPreviewMode = false;
+
+    // Premium Black & Neon Block Templates
+    const templates = {
+      navbar: {
+        type: 'navbar',
+        bg: 'bg-black/95',
+        padding: 'py-4 px-6',
+        html: `
+          <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <a href="#" class="text-base font-black tracking-widest text-white flex items-center space-x-2.5">
+              <span class="w-7 h-7 rounded bg-gradient-to-tr from-cyan-400 to-fuchsia-500 flex items-center justify-center text-black font-black text-xs shadow-[0_0_12px_rgba(6,182,212,0.6)]">⚡</span>
+              <span contenteditable="true">AURA.CORP</span>
+            </a>
+            <div class="hidden md:flex space-x-8 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              <a href="#features" class="hover:text-cyan-400 transition" contenteditable="true">// SYSTEMS</a>
+              <a href="#showcase" class="hover:text-cyan-400 transition" contenteditable="true">// RELEASES</a>
+              <a href="#pricing" class="hover:text-cyan-400 transition" contenteditable="true">// PASSES</a>
+            </div>
+            <a href="#" class="px-4 py-2 rounded-xl text-xs font-bold bg-cyan-400 text-black hover:bg-cyan-300 hover:shadow-[0_0_20px_rgba(6,182,212,0.7)] transition" contenteditable="true">CONNECT [PORTAL]</a>
+          </div>
+        `
+      },
+      hero: {
+        type: 'hero',
+        bg: 'bg-black',
+        padding: 'py-24 px-6',
+        html: `
+          <div class="max-w-4xl mx-auto text-center space-y-6">
+            <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-cyan-950/40 border border-cyan-500/40 text-cyan-300 text-xs font-semibold shadow-[0_0_15px_rgba(6,182,212,0.25)]">
+              <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+              <span contenteditable="true">VERSION 3.0 // NEON CORE LIVE</span>
+            </div>
+            <h1 class="text-4xl md:text-7xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-200 to-purple-400 leading-tight" contenteditable="true">
+              SHATTER REALITY WITH DARK AESTHETICS.
+            </h1>
+            <p class="text-zinc-400 text-sm md:text-base max-w-2xl mx-auto font-normal leading-relaxed" contenteditable="true">
+              Experience ultra-responsive engineering, high-contrast neon illumination, and uncompromised speed engineered for digital architects.
+            </p>
+            <div class="flex items-center justify-center gap-4 pt-4">
+              <a href="#" class="px-7 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:shadow-[0_0_25px_rgba(6,182,212,0.7)] text-black font-extrabold text-xs uppercase tracking-wider transition" contenteditable="true">INITIALIZE NOW</a>
+              <a href="#" class="px-7 py-3 rounded-xl bg-zinc-950 hover:bg-zinc-900 text-zinc-300 border border-zinc-800 font-bold text-xs uppercase tracking-wider transition hover:border-purple-500/40" contenteditable="true">ACCESS ARCHIVE</a>
+            </div>
+          </div>
+        `
+      },
+      features: {
+        type: 'features',
+        bg: 'bg-black',
+        padding: 'py-20 px-6',
+        html: `
+          <div class="max-w-6xl mx-auto">
+            <div class="text-center max-w-xl mx-auto mb-14">
+              <span class="text-cyan-400 text-xs font-bold uppercase tracking-widest">// ARCHITECTURE</span>
+              <h2 class="text-3xl font-extrabold text-white mt-2 mb-3" contenteditable="true">CYBERNETIC PRECISION</h2>
+              <p class="text-zinc-400 text-xs" contenteditable="true">Every component is tuned for raw performance, dark vibrancy, and zero bloat.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div class="p-6 rounded-2xl bg-zinc-950/80 border border-zinc-800/90 hover:border-cyan-500/60 hover:shadow-[0_0_25px_rgba(6,182,212,0.25)] transition duration-300">
+                <div class="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center mb-4"><i data-lucide="zap" class="w-5 h-5"></i></div>
+                <h3 class="text-base font-bold text-white mb-2" contenteditable="true">Sub-Millisecond Engine</h3>
+                <p class="text-zinc-400 text-xs leading-relaxed" contenteditable="true">Static asset compilation ensures instant edge delivery with zero layout shifts.</p>
+              </div>
+              <div class="p-6 rounded-2xl bg-zinc-950/80 border border-zinc-800/90 hover:border-purple-500/60 hover:shadow-[0_0_25px_rgba(168,85,247,0.25)] transition duration-300">
+                <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4"><i data-lucide="shield" class="w-5 h-5"></i></div>
+                <h3 class="text-base font-bold text-white mb-2" contenteditable="true">Cryptographic Privacy</h3>
+                <p class="text-zinc-400 text-xs leading-relaxed" contenteditable="true">Zero trackers. Zero cookies. Pure sovereign computing across all nodes.</p>
+              </div>
+              <div class="p-6 rounded-2xl bg-zinc-950/80 border border-zinc-800/90 hover:border-pink-500/60 hover:shadow-[0_0_25px_rgba(236,72,153,0.25)] transition duration-300">
+                <div class="w-10 h-10 rounded-xl bg-pink-500/10 text-pink-400 flex items-center justify-center mb-4"><i data-lucide="sliders" class="w-5 h-5"></i></div>
+                <h3 class="text-base font-bold text-white mb-2" contenteditable="true">Modular Core</h3>
+                <p class="text-zinc-400 text-xs leading-relaxed" contenteditable="true">Instantly reorganize, edit strings, and style directly inside your client browser.</p>
+              </div>
+            </div>
+          </div>
+        `
+      },
+      showcase: {
+        type: 'showcase',
+        bg: 'bg-zinc-950',
+        padding: 'py-20 px-6',
+        html: `
+          <div class="max-w-5xl mx-auto">
+            <div class="p-8 rounded-3xl bg-black border border-cyan-500/30 shadow-[0_0_40px_rgba(6,182,212,0.15)] flex flex-col md:flex-row items-center justify-between gap-8">
+              <div class="space-y-3">
+                <div class="inline-flex items-center space-x-2 text-cyan-400 text-xs font-mono">
+                  <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                  <span contenteditable="true">NOW STREAMING // 180 BPM DRIFT PHONK</span>
+                </div>
+                <h3 class="text-2xl font-black text-white tracking-wide" contenteditable="true">AURA PROTOCOL // OVERDRIVE</h3>
+                <p class="text-xs text-zinc-400 max-w-md" contenteditable="true">Mastered specifically with deep low-end frequencies and synth distortion.</p>
+              </div>
+              <div class="flex items-center space-x-3">
+                <div class="flex items-end space-x-1 h-10 bg-zinc-900/80 px-4 py-2 rounded-xl border border-zinc-800">
+                  <div class="w-1 bg-cyan-400 h-6 animate-pulse"></div>
+                  <div class="w-1 bg-cyan-400 h-8 animate-bounce"></div>
+                  <div class="w-1 bg-purple-400 h-4 animate-pulse"></div>
+                  <div class="w-1 bg-purple-400 h-7 animate-bounce"></div>
+                  <div class="w-1 bg-pink-400 h-5 animate-pulse"></div>
+                </div>
+                <a href="#" class="px-5 py-3 rounded-xl bg-cyan-400 text-black font-extrabold text-xs uppercase tracking-wider hover:bg-cyan-300 hover:shadow-[0_0_20px_rgba(6,182,212,0.6)] transition" contenteditable="true">LISTEN NOW</a>
+              </div>
+            </div>
+          </div>
+        `
+      },
+      pricing: {
+        type: 'pricing',
+        bg: 'bg-black',
+        padding: 'py-20 px-6',
+        html: `
+          <div class="max-w-4xl mx-auto text-center">
+            <span class="text-purple-400 text-xs font-bold uppercase tracking-widest">// ACCESS TIERS</span>
+            <h2 class="text-3xl font-black text-white mt-2 mb-12" contenteditable="true">MEMBERSHIP CLEARANCE</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+              <div class="p-7 rounded-3xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between">
+                <div>
+                  <h3 class="text-base font-bold text-zinc-300" contenteditable="true">CADET CLEARANCE</h3>
+                  <div class="my-4"><span class="text-4xl font-black text-white">$0</span><span class="text-zinc-500 text-xs"> / LIFETIME</span></div>
+                  <ul class="space-y-3 text-xs text-zinc-400 font-mono">
+                    <li class="flex items-center space-x-2"><span class="text-cyan-400">►</span> <span contenteditable="true">Full standard canvas access</span></li>
+                    <li class="flex items-center space-x-2"><span class="text-cyan-400">►</span> <span contenteditable="true">Instant HTML & CSS exports</span></li>
+                    <li class="flex items-center space-x-2"><span class="text-cyan-400">►</span> <span contenteditable="true">Cloudflare Pages compatibility</span></li>
+                  </ul>
+                </div>
+                <button class="mt-8 w-full py-3 rounded-xl border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs uppercase tracking-wider transition" contenteditable="true">CLAIM ACCESS</button>
+              </div>
+
+              <div class="p-7 rounded-3xl bg-gradient-to-b from-purple-950/30 to-black border-2 border-purple-500/50 shadow-[0_0_35px_rgba(168,85,247,0.3)] flex flex-col justify-between relative">
+                <span class="absolute -top-3.5 right-6 bg-gradient-to-r from-purple-500 to-pink-500 text-black font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-wider">ELITE STATUS</span>
+                <div>
+                  <h3 class="text-base font-bold text-purple-300" contenteditable="true">CYBER ARCHITECT</h3>
+                  <div class="my-4"><span class="text-4xl font-black text-white">$19</span><span class="text-zinc-500 text-xs"> / MONTH</span></div>
+                  <ul class="space-y-3 text-xs text-zinc-300 font-mono">
+                    <li class="flex items-center space-x-2"><span class="text-purple-400">★</span> <span contenteditable="true">Unlimited AI block syntheses</span></li>
+                    <li class="flex items-center space-x-2"><span class="text-purple-400">★</span> <span contenteditable="true">Custom neon particle systems</span></li>
+                    <li class="flex items-center space-x-2"><span class="text-purple-400">★</span> <span contenteditable="true">Direct git repo deployment</span></li>
+                  </ul>
+                </div>
+                <button class="mt-8 w-full py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:shadow-[0_0_25px_rgba(168,85,247,0.8)] text-black font-black text-xs uppercase tracking-wider transition" contenteditable="true">UPGRADE TO ELITE</button>
+              </div>
+            </div>
+          </div>
+        `
+      },
+      footer: {
+        type: 'footer',
+        bg: 'bg-black',
+        padding: 'py-10 px-6',
+        html: `
+          <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between text-xs text-zinc-500 gap-4 border-t border-zinc-900 pt-6">
+            <p class="font-mono" contenteditable="true">© 2026 AURA NEON SYSTEMS. ALL RIGHTS ENCRYPTED.</p>
+            <div class="flex space-x-6 uppercase font-mono tracking-widest text-[11px]">
+              <a href="#" class="hover:text-cyan-400 transition" contenteditable="true">TERMS</a>
+              <a href="#" class="hover:text-cyan-400 transition" contenteditable="true">SECURITY</a>
+              <a href="#" class="hover:text-cyan-400 transition" contenteditable="true">TELEMETRY</a>
+            </div>
+          </div>
+        `
+      }
+    };
+
+    function init() {
+      // Default initial layout
+      insertSection('navbar');
+      insertSection('hero');
+      insertSection('features');
+      insertSection('showcase');
+      insertSection('footer');
+      lucide.createIcons();
+    }
+
+    // Top-Left Section Drawer Menu
+    function toggleSectionMenu() {
+      const drawer = document.getElementById('section-drawer');
+      const chevron = document.getElementById('section-chevron');
+      const isOpen = !drawer.classList.contains('hidden');
+      
+      if (isOpen) {
+        drawer.classList.add('hidden');
+        chevron.style.transform = 'rotate(0deg)';
+      } else {
+        drawer.classList.remove('hidden');
+        chevron.style.transform = 'rotate(180deg)';
+      }
+    }
+
+    function insertSection(type) {
+      const template = templates[type];
+      if (!template) return;
+      const id = 'sec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+      blocks.push({ id, ...template });
+      renderCanvas();
+      selectBlock(id);
+      
+      // Auto close drawer after selection
+      document.getElementById('section-drawer').classList.add('hidden');
+      document.getElementById('section-chevron').style.transform = 'rotate(0deg)';
+    }
+
+    function renderCanvas() {
+      const canvas = document.getElementById('canvas');
+      canvas.innerHTML = '';
+
+      if (blocks.length === 0) {
+        canvas.innerHTML = `
+          <div class="py-28 text-center">
+            <i data-lucide="layers" class="w-12 h-12 mx-auto text-zinc-700 mb-3 animate-pulse"></i>
+            <h3 class="text-sm font-bold text-zinc-400 uppercase tracking-widest">Canvas Offline</h3>
+            <p class="text-xs text-zinc-600 mt-1">Open 'SECTIONS' at top-left or trigger 'AI Builder'.</p>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      blocks.forEach((block, index) => {
+        const div = document.createElement('div');
+        div.id = block.id;
+        div.className = `canvas-block ${block.bg} ${block.padding} ${selectedBlockId === block.id && !isPreviewMode ? 'selected' : ''}`;
+        div.onclick = (e) => {
+          if (isPreviewMode) return;
+          e.stopPropagation();
+          selectBlock(block.id);
+        };
+
+        let toolbarHtml = '';
+        if (!isPreviewMode) {
+          toolbarHtml = `
+            <div class="block-toolbar glass-panel rounded-xl shadow-2xl p-1 flex items-center space-x-1 border border-zinc-700">
+              <button onclick="moveBlock(${index}, -1, event)" class="p-1 hover:bg-zinc-800 text-zinc-300 rounded" title="Move Up"><i data-lucide="chevron-up" class="w-3.5 h-3.5"></i></button>
+              <button onclick="moveBlock(${index}, 1, event)" class="p-1 hover:bg-zinc-800 text-zinc-300 rounded" title="Move Down"><i data-lucide="chevron-down" class="w-3.5 h-3.5"></i></button>
+              <button onclick="duplicateBlock(${index}, event)" class="p-1 hover:bg-zinc-800 text-zinc-300 rounded" title="Duplicate"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>
+              <button onclick="deleteBlock(${index}, event)" class="p-1 hover:bg-rose-950 text-rose-400 rounded" title="Delete"><i data-lucide="trash" class="w-3.5 h-3.5"></i></button>
+            </div>
+          `;
+        }
+
+        div.innerHTML = toolbarHtml + block.html;
+        canvas.appendChild(div);
+      });
+
+      lucide.createIcons();
+    }
+
+    function selectBlock(id) {
+      selectedBlockId = id;
+      const b = blocks.find(x => x.id === id);
+      const inspector = document.getElementById('inspector-content');
+      const badge = document.getElementById('selected-type-badge');
+
+      if (!b) {
+        badge.innerText = 'NONE';
+        inspector.innerHTML = `<p class="text-zinc-500 text-center py-10 leading-relaxed">Select any block on the canvas to customize glow effects, padding, and neon themes.</p>`;
+        renderCanvas();
+        return;
+      }
+
+      badge.innerText = b.type.toUpperCase();
+      inspector.innerHTML = `
+        <div class="space-y-4">
+          <div>
+            <label class="block text-zinc-400 mb-1.5 font-semibold text-[11px] uppercase tracking-wider">Background Mode</label>
+            <select onchange="updateBlockStyle('${b.id}', 'bg', this.value)" class="w-full bg-black border border-zinc-800 rounded-xl p-2.5 text-zinc-200 focus:border-cyan-400">
+              <option value="bg-black" ${b.bg === 'bg-black' ? 'selected' : ''}>Pure OLED Black</option>
+              <option value="bg-zinc-950" ${b.bg === 'bg-zinc-950' ? 'selected' : ''}>Cyber Slate 950</option>
+              <option value="bg-purple-950/30" ${b.bg.includes('purple-950') ? 'selected' : ''}>Deep Neon Violet</option>
+              <option value="bg-cyan-950/30" ${b.bg.includes('cyan-950') ? 'selected' : ''}>Deep Neon Cyan</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-zinc-400 mb-1.5 font-semibold text-[11px] uppercase tracking-wider">Spacing / Padding</label>
+            <select onchange="updateBlockStyle('${b.id}', 'padding', this.value)" class="w-full bg-black border border-zinc-800 rounded-xl p-2.5 text-zinc-200 focus:border-cyan-400">
+              <option value="py-10 px-6" ${b.padding.includes('py-10') ? 'selected' : ''}>Compact (py-10)</option>
+              <option value="py-20 px-6" ${b.padding.includes('py-20') ? 'selected' : ''}>Standard (py-20)</option>
+              <option value="py-28 px-6" ${b.padding.includes('py-28') ? 'selected' : ''}>Epic Hero (py-28)</option>
+            </select>
+          </div>
+          <div class="pt-3 border-t border-zinc-800 text-zinc-400 text-[11px] space-y-1">
+            <p class="text-cyan-400 font-semibold">⚡ Direct Edit Enabled:</p>
+            <p>Click and type inside any heading, badge, or button on the canvas to update text live.</p>
+          </div>
+        </div>
+      `;
+      renderCanvas();
+    }
+
+    function updateBlockStyle(id, prop, val) {
+      const b = blocks.find(x => x.id === id);
+      if (b) {
+        b[prop] = val;
+        renderCanvas();
+      }
+    }
+
+    function moveBlock(index, offset, e) {
+      e.stopPropagation();
+      const target = index + offset;
+      if (target < 0 || target >= blocks.length) return;
+      const temp = blocks[index];
+      blocks[index] = blocks[target];
+      blocks[target] = temp;
+      renderCanvas();
+    }
+
+    function duplicateBlock(index, e) {
+      e.stopPropagation();
+      const clone = JSON.parse(JSON.stringify(blocks[index]));
+      clone.id = 'sec_' + Date.now();
+      blocks.splice(index + 1, 0, clone);
+      renderCanvas();
+    }
+
+    function deleteBlock(index, e) {
+      e.stopPropagation();
+      blocks.splice(index, 1);
+      selectedBlockId = null;
+      selectBlock(null);
+    }
+
+    function clearCanvas() {
+      if (confirm('Wipe canvas clean?')) {
+        blocks = [];
+        selectedBlockId = null;
+        selectBlock(null);
+      }
+    }
+
+    function setViewport(mode) {
+      const wrapper = document.getElementById('canvas-wrapper');
+      const btns = ['desktop', 'tablet', 'mobile'];
+      btns.forEach(b => {
+        const el = document.getElementById('btn-' + b);
+        el.className = b === mode 
+          ? 'px-3 py-1 rounded-lg text-xs flex items-center space-x-1.5 bg-zinc-800 text-cyan-300 font-semibold shadow-[0_0_10px_rgba(6,182,212,0.25)] transition'
+          : 'px-3 py-1 rounded-lg text-xs flex items-center space-x-1.5 text-zinc-400 hover:text-white transition';
+      });
+
+      if (mode === 'desktop') wrapper.style.maxWidth = '1024px';
+      if (mode === 'tablet') wrapper.style.maxWidth = '768px';
+      if (mode === 'mobile') wrapper.style.maxWidth = '390px';
+    }
+
+    function togglePreview() {
+      isPreviewMode = !isPreviewMode;
+      document.getElementById('inspector-sidebar').style.display = isPreviewMode ? 'none' : 'flex';
+      document.getElementById('section-menu-btn').style.display = isPreviewMode ? 'none' : 'flex';
+      document.getElementById('preview-text').innerText = isPreviewMode ? 'Exit Preview' : 'Preview';
+      document.getElementById('preview-btn').classList.toggle('border-cyan-400', isPreviewMode);
+      renderCanvas();
+    }
+
+    // Close Section Drawer on Outside Click
+    window.addEventListener('click', (e) => {
+      const drawer = document.getElementById('section-drawer');
+      const btn = document.getElementById('section-menu-btn');
+      if (!drawer.contains(e.target) && !btn.contains(e.target)) {
+        drawer.classList.add('hidden');
+        document.getElementById('section-chevron').style.transform = 'rotate(0deg)';
+      }
+    });
+
+    // AI Modal handlers
+    function openAiModal() { document.getElementById('ai-modal').classList.remove('hidden'); }
+    function closeAiModal() { document.getElementById('ai-modal').classList.add('hidden'); }
+    function setPromptPreset(text) { document.getElementById('ai-prompt').value = text; }
+
+    async function generateAiSite() {
+      const prompt = document.getElementById('ai-prompt').value.trim();
+      const apiKey = document.getElementById('gemini-key').value.trim();
+      const btn = document.getElementById('generate-btn');
+      
+      if (!prompt) {
+        alert('Enter a short prompt description.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i><span>Synthesizing...</span>`;
+      lucide.createIcons();
+
+      try {
+        if (apiKey) {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{
+                  text: `Generate 4 black neon website blocks for: "${prompt}". Return ONLY JSON: [{"type":"navbar|hero|features|pricing|footer","bg":"bg-black","padding":"py-20 px-6","html":"..."}]. Use Tailwind CSS with neon accents (cyan-400, purple-400, pink-500).`
+                }]
+              }]
+            })
+          });
+          const data = await res.json();
+          const raw = data.candidates[0].content.parts[0].text;
+          const clean = raw.replace(/```json|```/g, '').trim();
+          const parsed = JSON.parse(clean);
+          blocks = parsed.map(b => ({ id: 'sec_' + Math.random().toString(36).substr(2, 6), ...b }));
+        } else {
+          // Smart offline generator tailored with neon aesthetics
+          blocks = [
+            { id: 's1', ...templates.navbar },
+            {
+              id: 's2',
+              ...templates.hero,
+              html: `
+                <div class="max-w-4xl mx-auto text-center space-y-6">
+                  <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-950/40 border border-cyan-500/40 text-cyan-300 text-xs font-semibold">
+                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                    <span>AI DIRECT SYNTHESIS</span>
+                  </div>
+                  <h1 class="text-4xl md:text-7xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-300 to-purple-400 leading-tight" contenteditable="true">
+                    ${prompt.slice(0, 42).toUpperCase()}
+                  </h1>
+                  <p class="text-zinc-400 text-sm max-w-xl mx-auto font-normal leading-relaxed" contenteditable="true">
+                    High contrast dark mode layout rendered for high-energy creators and cyber applications.
+                  </p>
+                  <div class="flex items-center justify-center gap-4 pt-4">
+                    <a href="#" class="px-7 py-3 rounded-xl bg-cyan-400 hover:shadow-[0_0_25px_rgba(6,182,212,0.8)] text-black font-extrabold text-xs uppercase tracking-wider transition" contenteditable="true">INITIALIZE</a>
+                  </div>
+                </div>
+              `
+            },
+            { id: 's3', ...templates.features },
+            { id: 's4', ...templates.showcase },
+            { id: 's5', ...templates.footer }
+          ];
+        }
+
+        renderCanvas();
+        closeAiModal();
+      } catch (err) {
+        alert('Applied offline neon template suite.');
+        renderCanvas();
+        closeAiModal();
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="wand-2" class="w-3.5 h-3.5"></i><span>Generate Layout</span>`;
+        lucide.createIcons();
+      }
+    }
+
+    // Export Handlers
+    function exportCode() {
+      // Sync all text edits before compiling
+      blocks.forEach(b => {
+        const el = document.getElementById(b.id);
+        if (el) {
+          const clone = el.cloneNode(true);
+          const bar = clone.querySelector('.block-toolbar');
+          if (bar) bar.remove();
+          clone.classList.remove('selected');
+          b.html = clone.innerHTML;
+        }
+      });
+
+      const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AURA // CYBER EXPERIENCE</title>
+  <script src="https://cdn.tailwindcss.com"><\/script>
+  <script src="https://unpkg.com/lucide@latest"><\/script>
+  <style>
+    body { background-color: #000000; color: #f4f4f5; }
+    .cyber-grid {
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(6, 182, 212, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(168, 85, 247, 0.05) 1px, transparent 1px);
+    }
+  </style>
+</head>
+<body class="bg-black text-zinc-100 font-sans antialiased relative">
+  <div class="fixed inset-0 cyber-grid pointer-events-none opacity-60"></div>
+  <div class="relative z-10">
+${blocks.map(b => `    <section class="${b.bg} ${b.padding}">\n${b.html.trim()}\n    </section>`).join('\n\n')}
+  </div>
+  <script>lucide.createIcons();<\/script>
+</body>
+</html>`;
+
+      document.getElementById('exported-html-box').value = fullHtml;
+      document.getElementById('export-modal').classList.remove('hidden');
+    }
+
+    function closeExportModal() { document.getElementById('export-modal').classList.add('hidden'); }
+
+    function copyExportedCode() {
+      const box = document.getElementById('exported-html-box');
+      box.select();
+      navigator.clipboard.writeText(box.value);
+      const btn = document.getElementById('copy-btn');
+      btn.innerText = 'Copied!';
+      setTimeout(() => btn.innerText = 'Copy Code', 2000);
+    }
+
+    function downloadHtmlFile() {
+      const content = document.getElementById('exported-html-box').value;
+      const blob = new Blob([content], { type: 'text/html' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'index.html';
+      a.click();
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
